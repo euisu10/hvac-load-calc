@@ -1124,7 +1124,7 @@ F.A = ${fmt(rm.persons)} 人 × ${S.faPerPerson} CMH/人 = ${fmt(oa.fa)} CMH</di
      <tr class="tot"><td>TOTAL</td><td></td><td></td><td></td>${td(d.kwEq,1)}${td(d.powerLoad)}<td></td>${td(d.need)}</tr></table>
     <table class="rt"><tr><th>ITEM</th><th>BASIS</th><th>(kcal/h)</th></tr>
      <tr>${td('TARGET ROOM LOAD',0,'')}${td(`${fmt(d.target)} kcal/(h·m²) × ${fmt(rm.area)} m²`,0,'')}${td(d.targetLoad)}</tr>
-     <tr>${td('BUILDING + PERSON + LIGHTING + FAN',0,'')}${td('2-2 참조',0,'')}${td(d.others)}</tr>
+     <tr>${td('BUILDING + PERSON + LIGHTING + FAN',0,'')}${td('2-4 참조',0,'')}${td(d.others)}</tr>
      <tr class="tot"><td>PROCESS A/C LOAD</td><td>${d.manual?`ASSUMED POWER ${fmt(d.kwEq,1)} kW × 860 × LOAD RATE ${fmt(d.rate)}%`:`TARGET${S.roomSF?` ÷ ${1+S.roomSF/100} (S.F)`:''} − (BUILDING + PERSON + LIGHTING + FAN)`}</td><td class="n">${fmt(d.need)}</td></tr>
      <tr>${td(d.manual?'PROCESS POWER (assumed)':'PROCESS POWER (back-calc.)',0,'')}${td(d.manual?`${fmt(d.kwEq,1)} kW × 860 × ${fmt(d.rate)}% = ${fmt(d.need)} kcal/h → ${fmt(R.load.density,1)} kcal/(h·m²)`:`${fmt(d.need)} ÷ ${fmt(d.rate)}% ÷ 860`,0,'')}${td(`${fmt(d.kwEq,1)} kW`)}</tr></table>
     <p class="note">* PROCESS POWER (kW) not provided — per our standard design practice, a load per square meter of 150~200 kcal/(h·m²) is applied for clean rooms (general room abt. 100 kcal/(h·m²)). Equivalent power is back-calculated at the load rate above.</p>`;
@@ -1143,7 +1143,7 @@ F.A = ${fmt(rm.persons)} 人 × ${S.faPerPerson} CMH/人 = ${fmt(oa.fa)} CMH</di
    <tr>${td('BUILDING',0,'')}${td(`${S.bldgUnit} kcal/h·m² × ${fmt(rm.area)} m²`,0,'')}${td(L.bldg)}</tr>
    <tr>${td('PERSON',0,'')}${td(`${S.personSH} kcal/h·人 × ${fmt(rm.persons)} 人`,0,'')}${td(L.person)}</tr>
    <tr>${td('LIGHTING',0,'')}${td(`${S.lightUnit} kcal/h·m² (${S.illum} lux) × ${fmt(rm.area)} m² × ${S.lightFactor}`,0,'')}${td(L.light)}</tr>
-   <tr>${td('PROCESS EQUIP.',0,'')}${td(pt.mode==='density'?`2-1. 3) 참조 (면적당 ${fmt(S.targetDensity)} kcal/h·m² 기준 역산)`:'2-1. 3) 참조',0,'')}${td(L.proc)}</tr>
+   <tr>${td('PROCESS EQUIP.',0,'')}${td(pt.mode==='density'?(R.procDensity.manual?`2-3 참조 (임의 POWER ${fmt(R.procDensity.kwEq,1)} kW)`:`2-3 참조 (면적당 ${fmt(S.targetDensity)} kcal/h·m² 기준 역산)`):'2-3 참조',0,'')}${td(L.proc)}</tr>
    <tr>${td('FAN (BFU)',0,'')}${td(R.bfu.fanAuto?`BFU ${fmt(R.bfu.qty)} EA × ${fmt(S.bfuW)} W × ${S.bfuFactor} × 0.86`:'직접 입력',0,'')}${td(L.fan,1)}</tr>
    <tr class="tot"><td>TOTAL (S.F : ${S.roomSF}%)</td><td>${fmt(L.density,1)} kcal/h·m² (${fmt(L.densityW,1)} W/m²)</td><td class="n hl">${fmt(L.total)}</td></tr>
    <tr>${td('ROOM HEATING',0,'')}${td(`${S.heatUnit} kcal/h·m² × ${fmt(rm.area)} m²`,0,'')}${td(L.heat)}</tr></table>
@@ -1153,7 +1153,7 @@ F.A = ${fmt(rm.persons)} 人 × ${S.faPerPerson} CMH/人 = ${fmt(oa.fa)} CMH</di
    <tr>${td('S.A (by load)',0,'')}${td(`${fmt(L.total)} ÷ 0.29 ÷ ΔT ${fmt(a2.dT,1)}℃ (${a.RM.db} − ${fmt(a.DP.db,1)})`,0,'')}${td(a2.saLoad)}</tr>
    <tr>${td(`S.A (C.A × ${fmt(S.caRatio)}%)`,0,'')}${td(`C.A ${fmt(a2.ca)} CMH × ${fmt(S.caRatio)}%`,0,'')}${td(a2.saCa)}</tr>
    <tr>${td('S.A (temp. deviation)',0,'')}${td(`Volume ${fmt(rm.vol)} m³ × ${S.tempACH} 回/h (±${S.roomTtol}℃)`,0,'')}${td(a2.saTemp)}</tr>
-   <tr>${td('O.A',0,'')}${td('2-1. 2) 참조',0,'')}${td(oa.oa)}</tr>
+   <tr>${td('O.A',0,'')}${td('2-2 참조',0,'')}${td(oa.oa)}</tr>
    <tr class="tot"><td>FINAL S.A</td><td>MAX of above — governed by ${a2.gov} (${fmt(a2.achActual,1)} 回/h)</td><td class="n hl">${fmt(a2.saFinal)}</td></tr>
    <tr>${td('BFU (C.A − S.A)',0,'')}${td(`(${fmt(a2.ca)} − ${fmt(a2.saFinal)}) ÷ ${S.bfuCMM} CMM ÷ 60 × ${S.bfuSF} = ${fmt(R.bfu.auto)} EA → SELECTED${R.bfu.manual?' (manual)':''}`,0,'')}${td(`${fmt(R.bfu.qty)} EA`)}</tr>
    <tr>${td('HFB (S.A)',0,'')}${td(`${fmt(a2.saFinal)} ÷ ${S.hfbCMM} CMM ÷ 60 × ${S.hfbSF} = ${fmt(R.bfu.hfb)} EA → SELECTED${R.bfu.hfbManual?' (manual)':''}`,0,'')}${td(`${fmt(R.bfu.hfbSel)} EA`)}</tr>
