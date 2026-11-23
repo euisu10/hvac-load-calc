@@ -1,0 +1,1276 @@
+[index.html](https://github.com/user-attachments/files/35267066/index.html)
+<!DOCTYPE html>
+<html lang="ko" data-skin="black">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>클린룸 HVAC 부하계산서</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: engineering worksheet — inputs (yellow cells, as in the company Excel) on the left, live results pinned on the right; report view = A4 calc-sheet pages */
+:root{
+  /* WHITE skin */
+  --ink:#16202b; --paper:#eef1f4; --sheet:#ffffff; --rule:#cfd6de; --muted:#5b6876;
+  --accent:#e2601c;            /* SHINSUNG E&G orange */
+  --blue:#1f86c4; --green:#6fae2b;
+  --input:#fff8d6; --inputBd:#e6d9a3; --autobg:#eef3f8; --soft:#f6f8fa; --th:#e8edf2; --tint:#fdeee5;
+  --pillbg:#e3f0f9; --pilltx:#1f6fa3; --warnbg:#fbeadb; --warnsoft:#fdf5ee; --oksoft:#eef7f1; --reqbg:#fff3e6;
+  --ok:#3d8a1f; --warn:#c2581b; --bad:#b3261e; --bar:#ffffff; --barTx:#16202b;
+  --f-body:"IBM Plex Sans KR","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+  --f-num:"IBM Plex Mono",Consolas,monospace;
+  color-scheme:light;
+}
+html[data-skin="black"]{
+  --ink:#e6eaee; --paper:#121519; --sheet:#1b1f25; --rule:#323943; --muted:#98a4b0;
+  --accent:#f2661e; --blue:#2e9bd6; --green:#8dc63f;
+  --input:#2a2821; --inputBd:#4d4630; --autobg:#232930; --soft:#20252c; --th:#262c34; --tint:rgba(242,102,30,.14);
+  --pillbg:rgba(46,155,214,.16); --pilltx:#66bdea; --warnbg:rgba(242,102,30,.2); --warnsoft:rgba(242,102,30,.10); --oksoft:rgba(141,198,63,.12); --reqbg:rgba(242,102,30,.12);
+  --ok:#8dc63f; --warn:#f2894a; --bad:#ff6b5e; --bar:#1b1f25; --barTx:#e6eaee;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:13.5px;line-height:1.45}
+.num,td.n,input[type=number]{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+h1,h2,h3{text-wrap:balance;margin:0}
+button{font:inherit;cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* top bar */
+.bar{position:sticky;top:0;z-index:20;background:var(--paper);padding:10px 16px 0}
+.bar .in{background:var(--bar);color:var(--barTx);border:1px solid var(--rule);border-radius:10px;display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:10px 14px}
+.bar .stripe{height:3px;margin:6px 2px 0;border-radius:2px;background:linear-gradient(90deg,var(--blue),var(--green) 50%,var(--accent))}
+.brand{display:flex;align-items:center;gap:10px}
+.brand .ico{width:34px;height:34px;border-radius:8px;background:var(--tint);display:grid;place-items:center;color:var(--accent)}
+.bar h1{font-size:16px;font-weight:700;letter-spacing:.01em}
+.bar h1 em{font-style:normal;color:var(--accent)}
+.bar .sub{font-size:11px;color:var(--muted);font-family:var(--f-num);letter-spacing:.04em}
+.bar .sp{flex:1}
+.seg2{display:flex;gap:4px}
+.seg2 button{border:1px solid var(--rule);background:transparent;color:var(--muted);padding:4px 9px;border-radius:5px;font-family:var(--f-num);font-size:11.5px;font-weight:600}
+.seg2 button[aria-pressed="true"]{border-color:var(--accent);color:var(--accent);background:var(--tint)}
+.logo{display:flex;align-items:center;gap:7px;padding-left:6px}
+.logo img{height:22px;width:auto}
+.logo span{font-weight:800;font-size:11px;line-height:1.05;letter-spacing:.02em;color:var(--barTx)}
+.bar .row2{border-top:1px dashed var(--rule);padding-top:8px;margin-top:2px;display:flex;flex-wrap:wrap;gap:8px;align-items:center;width:100%}
+.bar .tabs{display:flex;gap:4px;background:var(--soft);border:1px solid var(--rule);padding:3px;border-radius:7px}
+.bar .tabs button{border:0;background:transparent;color:var(--muted);padding:5px 12px;border-radius:5px;font-weight:600}
+.bar .tabs button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.btn{border:1px solid var(--rule);background:var(--sheet);color:var(--ink);padding:6px 12px;border-radius:6px;font-weight:500}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn.pri{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn.pri:hover{color:#fff;filter:brightness(1.08)}
+.psy{background:#fff;border-radius:6px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:6px;font-size:13px;z-index:50;display:none;max-width:90vw}
+
+/* calc view */
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;padding:16px 20px;max-width:1500px;margin:0 auto}
+@media (max-width:1050px){.wrap{grid-template-columns:1fr}.side{position:static!important}}
+.card{background:var(--sheet);border:1px solid var(--rule);border-radius:6px}
+details.card{margin-bottom:12px}
+details.card>summary{list-style:none;padding:10px 14px;font-weight:600;display:flex;gap:10px;align-items:center;cursor:pointer;border-bottom:1px solid transparent}
+details.card[open]>summary{border-bottom-color:var(--rule)}
+details.card>summary::-webkit-details-marker{display:none}
+summary .no{font-family:var(--f-num);color:var(--accent);font-size:12px;min-width:26px}
+summary .hint{font-weight:400;color:var(--muted);font-size:12px;margin-left:auto}
+summary::after{content:"▾";color:var(--muted);font-size:11px}
+details:not([open])>summary::after{content:"▸"}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px 14px;padding:12px 14px}
+.f{display:grid;grid-template-columns:1fr 118px 52px;align-items:center;gap:6px}
+.f.af{grid-template-columns:1fr 92px 52px 44px}
+.f.af .btn.mini{padding:3px 0;font-size:11.5px}
+.f.af small.man{color:var(--warn)}
+.f.wide{grid-column:1/-1;grid-template-columns:160px 1fr}
+.f label{font-size:12.5px;color:var(--ink)}
+.f .u{font-size:11px;color:var(--muted)}
+.f small{grid-column:1/-1;color:var(--muted);font-size:11px;margin-top:-3px}
+input,select{font:inherit;width:100%;border:1px solid var(--inputBd);background:var(--input);padding:4px 6px;border-radius:3px;color:var(--ink);min-width:0}
+input[type=number]{text-align:right}
+input.auto{background:var(--autobg);color:var(--muted)}
+.tbl-in{width:100%;border-collapse:collapse;font-size:12.5px}
+.tbl-in th{background:var(--th);font-weight:600;font-size:11.5px;padding:5px 4px;border:1px solid var(--rule);text-align:center}
+.tbl-in td{border:1px solid var(--rule);padding:2px}
+.tbl-in td input{border:0;border-radius:0}
+.tbl-in td.n{text-align:right;padding:2px 6px;background:var(--soft)}
+.scroll{overflow-x:auto;padding:12px 14px}
+.tbl-in.cond td{padding:4px 8px}.tbl-in.cond td:first-child{text-align:left}.tbl-in.cond tr.fx td{background:var(--soft)}.tbl-in.cond tr.dew td:first-child{padding-left:20px;color:var(--muted)}.tbl-in.cond td input{padding:3px 6px}.tbl-in td.c{text-align:center}
+.seg{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.seg button{border:1px solid var(--rule);background:var(--sheet);border-radius:6px;padding:8px 12px;text-align:left;display:flex;flex-direction:column;gap:2px;color:var(--ink)}
+.seg button small{color:var(--muted);font-size:11.5px}
+.seg button[aria-pressed="true"]{border-color:var(--accent);background:var(--tint);box-shadow:inset 0 0 0 1px var(--accent)}
+.seg button[aria-pressed="true"] b{color:var(--accent)}
+.chk{display:flex;gap:18px;margin-top:10px;font-size:12.5px}.chk input{width:auto;margin-right:5px;vertical-align:-2px}
+.pinfo{font-size:12px;color:var(--muted);flex:1;min-width:260px}.pinfo b{color:var(--ink);font-family:var(--f-num);font-weight:600}
+details.sub{margin:0 14px 12px;border:1px dashed var(--rule);border-radius:5px}
+details.sub>summary{list-style:none;padding:8px 12px;cursor:pointer;font-weight:600;font-size:12.5px;color:var(--muted)}
+details.sub>summary::-webkit-details-marker{display:none}
+details.sub>summary span{font-weight:400;font-size:11.5px;margin-left:6px}
+details.sub[open]>summary{border-bottom:1px dashed var(--rule)}
+.ahuin{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 14px;border-bottom:1px solid var(--rule);background:var(--soft)}
+.ahuin label{font-size:11.5px;color:var(--muted);display:block;margin-bottom:2px}
+.list .sec{border-bottom:0;padding-top:8px;font-weight:600;font-size:11.5px;color:var(--accent)}
+.list b small{color:var(--muted);font-weight:400;margin-left:4px}
+.chips{grid-column:2/-1;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.chips span{font-size:11px;color:var(--muted);margin-right:4px}
+.chip{border:1px solid var(--rule);background:var(--sheet);border-radius:12px;padding:1px 9px;font-family:var(--f-num);font-size:11.5px;color:var(--ink)}
+.chip:hover,.chip.on{border-color:var(--accent);color:var(--accent);background:var(--tint)}
+input.req:placeholder-shown{border-color:var(--warn);background:var(--reqbg)}
+.empty{padding:18px 14px;font-size:12.5px;color:var(--muted)}
+.empty b{color:var(--warn)}
+.chtabs{display:flex;gap:0;border-bottom:1px solid var(--rule);padding:0 14px;background:var(--soft)}
+.chtabs button{border:0;background:none;padding:9px 12px;font-weight:600;font-size:12.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
+.chtabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+.psy{width:100%;height:auto;display:block}
+.psyt td{padding:3px 8px}
+.row-x{border:0;background:none;color:var(--bad);font-size:15px;padding:0 6px}
+.addrow{margin:0 14px 12px}
+
+/* side results */
+.side{position:sticky;top:124px;align-self:start;display:flex;flex-direction:column;gap:12px;max-height:calc(100vh - 140px);overflow:auto}
+.side h2{font-size:13px;padding:10px 14px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule)}
+.kpi{background:var(--sheet);padding:9px 12px}
+.kpi .k{font-size:11.5px;color:var(--muted)}
+.kpi .v{font-family:var(--f-num);font-size:18px;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi .v small{font-size:11px;color:var(--muted);font-weight:400;margin-left:3px}
+.kpi.big{grid-column:1/-1}
+.kpi .ref{font-family:var(--f-num);font-size:11px;color:var(--muted);margin-top:1px}
+.list{padding:6px 14px 10px}
+.list div{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-bottom:1px dotted var(--rule);font-size:12.5px}
+.list div:last-child{border-bottom:0}
+.list b{font-family:var(--f-num);font-weight:500;font-variant-numeric:tabular-nums;white-space:nowrap}
+.pill{display:inline-block;font-size:11px;padding:1px 7px;border-radius:10px;background:var(--pillbg);color:var(--pilltx);font-weight:600}
+.pill.w{background:var(--warnbg);color:var(--warn)}
+.warns{padding:10px 14px;display:flex;flex-direction:column;gap:6px}
+.warns p{margin:0;font-size:12px;border-left:3px solid var(--warn);padding:4px 8px;background:var(--warnsoft)}
+.warns p.okm{border-color:var(--ok);background:var(--oksoft)}
+
+/* report view */
+#report{display:none;padding:20px 0 40px}
+.pg-head .lg{display:inline-flex;align-items:center;gap:5px;margin-right:8px;vertical-align:middle}.pg-head .lg img{height:12px}.pg-head .lg b{font-size:8px;line-height:1;color:#16202b;letter-spacing:.02em}
+.cover .clogo{display:flex;align-items:center;gap:10px;justify-content:center;margin-top:16mm}.cover .clogo img{height:34px}.cover .clogo b{font-size:14px;line-height:1.05;letter-spacing:.03em;color:#16202b;text-align:left}
+.rpt-tools{max-width:210mm;margin:0 auto 12px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:0 12px}
+.rpt-tools p{margin:0;font-size:12px;color:var(--muted);flex:1;min-width:220px}
+.page{--ink:#16202b;--muted:#5b6876;--accent:#1d4f86;--rule:#c9d1da;color:var(--ink);width:210mm;min-height:297mm;margin:0 auto 16px;background:#fff;padding:14mm 13mm 12mm;box-shadow:0 1px 4px rgba(0,0,0,.12);position:relative;display:flex;flex-direction:column;font-size:11px}
+.pg-head{display:flex;justify-content:space-between;border-bottom:2px solid var(--ink);padding-bottom:4px;margin-bottom:10px;font-size:10px;color:var(--muted)}
+.pg-foot{margin-top:auto;border-top:1px solid var(--ink);padding-top:4px;display:flex;justify-content:space-between;font-size:9.5px;color:var(--muted)}
+.page h2{font-size:13.5px;margin:0 0 4px;padding-bottom:3px;border-bottom:1px solid #7b8794}
+.page h3{font-size:12px;margin:12px 0 5px;color:var(--accent)}
+.rt{width:100%;border-collapse:collapse;margin-bottom:6px}
+.rt th,.rt td{border:1px solid #7b8794;padding:3px 5px;font-size:10.5px;vertical-align:middle}
+.rt th{background:#e6ebf0;font-weight:600;text-align:center}
+.rt td.n{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums;white-space:nowrap}
+.rt td.c{text-align:center}
+.rt tr.tot td{font-weight:700;background:#f2f4f6}
+.rt td.hl{background:#fff3b0;font-weight:700}
+.eq{font-family:var(--f-num);font-size:10.5px;margin:2px 0 2px 14px;white-space:pre-wrap}
+.eq b{background:#fff3b0;padding:0 3px}
+.lbl{font-weight:600;margin:6px 0 2px}
+.note{font-size:9.5px;color:var(--muted);margin:2px 0}
+.cover .ttl{margin-top:14mm;text-align:center}
+.toc{width:150mm;margin:14mm auto 0}
+.toc h3{margin-bottom:6px}
+.toc div{display:flex;align-items:baseline;gap:6px;padding:3px 0;font-size:11px}
+.toc .l1{font-weight:700;margin-top:7px}
+.toc .l2{padding-left:10mm;color:#2c3a48}
+.toc i{flex:1;border-bottom:1px dotted #9aa6b2}
+.toc b{font-family:var(--f-num);font-weight:500;min-width:6mm;text-align:right}
+.cover .sign{margin-top:auto;margin-bottom:6mm}
+.cover .ttl .a{font-size:15px;letter-spacing:.2em;color:var(--muted)}
+.cover .ttl .b{font-size:26px;font-weight:700;margin:10px 0;letter-spacing:.04em}
+.cover .ttl .c{font-size:14px}
+.cover .meta{width:120mm;margin:8mm auto 0}
+.sign{display:grid;grid-template-columns:repeat(3,1fr);width:90mm;margin-left:auto;border:1px solid #7b8794;text-align:center;font-size:10px}
+.sign div{border-right:1px solid #7b8794}
+.sign div:last-child{border-right:0}
+.sign span{display:block;border-bottom:1px solid #7b8794;background:#e6ebf0;padding:2px}
+.sign i{display:block;height:14mm;font-style:normal;padding-top:9mm}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+@media print{
+  @page{size:A4 portrait;margin:0}
+  html,body{background:#fff}
+  .bar,#calc,.rpt-tools,.toast{display:none!important}
+  #report{display:block!important;padding:0}
+  .page{margin:0;box-shadow:none;page-break-after:always;break-after:page;width:210mm;height:297mm;min-height:0;overflow:hidden}
+  .page:last-child{page-break-after:auto;break-after:auto}
+  .rt th,.rt td.hl,.rt tr.tot td,.eq b{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="bar">
+  <div class="in">
+    <div class="brand"><div class="ico" aria-hidden="true"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h4l2-5 4 10 2-5h6"/></svg></div>
+      <div><h1>클린룸 HVAC <em>부하계산서</em></h1></div></div>
+    <span class="sp"></span>
+    <div class="seg2" role="group" aria-label="Language"><button data-lang="ko">KR</button><button data-lang="en">US</button><button data-lang="vi">VN</button></div>
+    <div class="seg2" role="group" aria-label="Theme"><button data-skin="black">☾ BLACK</button><button data-skin="white">☀ WHITE</button></div>
+    <div class="logo"><img src="data:image/png;base64,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" alt="SHINSUNG E&amp;G"><span>SHINSUNG E&amp;G<br>VIETNAM</span></div>
+    <div class="row2">
+      <div class="tabs" role="tablist">
+        <button id="tabCalc" aria-pressed="true">입력 · 결과</button>
+        <button id="tabRpt" aria-pressed="false">보고서</button>
+      </div>
+      <span class="sp"></span>
+      <button class="btn" id="btnReset" title="회사 엑셀(rev4) 기본값으로 되돌립니다">기본값 복원</button>
+      <button class="btn" id="btnCopy" title="현재 입력값을 JSON으로 복사">입력값 복사</button>
+      <button class="btn" id="btnPaste" title="복사해 둔 JSON 입력값을 붙여넣어 불러옵니다">입력값 불러오기</button>
+      <button class="btn pri" id="btnPrint">보고서 출력</button>
+    </div>
+  </div>
+  <div class="stripe"></div>
+</header>
+
+<main id="calc">
+  <div class="wrap">
+    <div><section id="inputs"></section>
+    <section class="card" id="psyCard" style="margin-bottom:12px"><h2 style="font-size:13px;padding:10px 14px;border-bottom:1px solid var(--rule)">습공기 선도 <span style="font-weight:400;color:var(--muted);font-size:12px">· 공조기 1대 기준 공기 상태 변화</span></h2><div id="psyBody" style="padding:10px 14px"></div></section></div>
+    <aside class="side" id="side"></aside>
+  </div>
+</main>
+
+<section id="report">
+  <div class="rpt-tools">
+    <button class="btn" id="btnBack">← 입력으로</button>
+    <button class="btn pri" id="btnPrint2" style="background:var(--accent);color:#fff;border-color:var(--accent)">인쇄 / PDF 저장</button>
+    <p id="printNote">A4 세로 기준. 인쇄 대화상자에서 "배경 그래픽" 옵션을 켜면 강조 셀 색이 함께 출력됩니다.</p>
+  </div>
+  <div id="pages"></div>
+</section>
+
+<div class="toast" id="toast" role="status"></div>
+<dialog id="pasteDlg" style="border:1px solid var(--rule);border-radius:8px;padding:16px;max-width:560px;width:92vw">
+  <form method="dialog" id="pasteForm">
+    <h3 style="margin-bottom:8px;font-size:14px">입력값 불러오기</h3>
+    <p style="margin:0 0 8px;font-size:12px;color:var(--muted)">"입력값 복사"로 저장해 둔 JSON을 붙여넣으세요.</p>
+    <textarea id="pasteTxt" style="width:100%;height:180px;font-family:var(--f-num);font-size:11.5px"></textarea>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:8px">
+      <button class="btn" value="cancel">취소</button>
+      <button class="btn" id="pasteOk" value="ok" style="background:var(--accent);color:#fff;border-color:var(--accent)">불러오기</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+// ===== HVAC / CLEAN ROOM HEAT LOAD ENGINE (mirrors company Excel rev4) =====
+const XL = {
+  roundup(x, d) { const f = Math.pow(10, d); const v = Math.abs(x) * f; const r = Math.ceil(v - 1e-9) / f; return x < 0 ? -r : r; },
+  round(x, d) { const f = Math.pow(10, d); return Math.round(x * f) / f; },
+};
+// saturation pressure kPa (Hyland-Wexler over water, t in °C)
+function pws(t) {
+  const T = t + 273.15;
+  return Math.exp(-5.8002206e3 / T + 1.3914993 - 4.8640239e-2 * T + 4.1764768e-5 * T * T - 1.4452093e-8 * T * T * T + 6.5459673 * Math.log(T)) / 1000;
+}
+function absHum(t, rh, P) { const pw = pws(t) * rh / 100; return 0.622 * pw / (P - pw); }
+function rhFrom(t, w, P) { const pw = w * P / (0.622 + w); return pw / pws(t) * 100; }
+function dewPoint(w, P) { // invert
+  const pw = w * P / (0.622 + w); let lo = -40, hi = 60;
+  for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (pws(m) > pw) hi = m; else lo = m; }
+  return (lo + hi) / 2;
+}
+// enthalpy kcal/kg (Excel: (1.005t + x(2500+1.84t))/4.186)
+function enth(t, w) { return (1.005 * t + w * (2500 + 1.84 * t)) / 4.186; }
+
+
+// ===== 2-1. GIVEN DATA — fixed design conditions (company standard) =====
+// To add a permanent condition: append one object to rooms[] (room row + its coil-leaving / dew-point row).
+// ah / dewDB given → used as fixed values; omitted → computed from db·rh (dew = temp where room AH reaches dewRH).
+const DESIGN_CONDITIONS = {
+  pressure: 101.325, pressureLabel: '1atm',
+  outdoor: [
+    { id: 'SUMMER', name: 'SUMMER', db: 35, rh: 70, ah: 0.025161 },
+    { id: 'WINTER', name: 'WINTER', db: 9, rh: 78, ah: 0.00555 },
+  ],
+  rooms: [
+    { id: 'CR1', name: 'CLEAN ROOM 1', dewName: 'DEW POINT (CR1)', db: 20, rh: 50, ah: 0.00726, dewDB: 10.0, dewRH: 95 },
+    { id: 'CR2', name: 'CLEAN ROOM 2', dewName: 'DEW POINT (CR2)', db: 22, rh: 50, ah: 0.008226, dewDB: 11.86, dewRH: 95 },
+    { id: 'GR', name: 'GENERAL ROOM(GR)', dewName: 'DEW POINT(GR)', db: 24, rh: 50, ah: 0.0093, dewDB: 13.7, dewRH: 95 },
+  ],
+};
+const num = v => (v !== '' && v != null && !isNaN(+v)) ? +v : null;
+function tempAtRH(w, rh, P) {
+  const pw = w * P / (0.622 + w) / (rh / 100); let lo = -40, hi = 60;
+  for (let i = 0; i < 60; i++) { const m = (lo + hi) / 2; if (pws(m) > pw) hi = m; else lo = m; }
+  return (lo + hi) / 2;
+}
+function resolveOutdoor(o, P) {
+  const ah = num(o.ah) ?? absHum(o.db, o.rh, P);
+  return { ...o, ah, h: enth(o.db, ah) };
+}
+function resolveRoom(c, P) {
+  const ah = num(c.ah) ?? absHum(c.db, c.rh, P);
+  const dewRH = num(c.dewRH) ?? 95;
+  const ddb = num(c.dewDB) ?? tempAtRH(ah, dewRH, P);
+  return {
+    id: c.id, custom: !!c.custom, name: c.name, dewName: c.dewName || ('DEW POINT (' + c.name + ')'),
+    room: { db: +c.db, rh: +c.rh, ah, h: enth(+c.db, ah) },
+    dew: { db: ddb, rh: dewRH, ah, h: enth(ddb, ah) },
+  };
+}
+function allRoomConds(I) { return DESIGN_CONDITIONS.rooms.concat((I.customConds || []).map(c => ({ ...c, custom: true }))); }
+
+function ahuCalc({ I, L, RM, DP, S, W, saFinal, oa }, n) {
+  const A = { n };
+  A.rsh = L.total / n; A.rlh = I.rlh / n;
+  A.oa = XL.roundup(oa / n, -3);
+  A.saReq = (A.rsh + A.rlh) / 0.29 / (RM.db - DP.db);
+  A.sa = XL.roundup(saFinal / n, -3);
+  A.ra = A.sa - A.oa;
+  // cooling
+  A.ee = (A.ra * RM.h + A.oa * S.h) / A.sa;
+  A.le = DP.h;
+  A.mid = (A.ee + A.le) / 2;
+  A.preRaw = XL.roundup(A.sa * 1.2 * (A.ee - A.mid), -2);
+  A.pre = XL.roundup(A.preRaw * I.coolSF, -2);
+  A.reRaw = XL.roundup(A.sa * 1.2 * (A.mid - A.le), -2);
+  A.re = XL.roundup(A.reRaw * I.coolSF, -2);
+  A.cool = A.pre + A.re;
+  const cwK = I.cwDT * 60; // kcal/h per LPM
+  A.preLpm = A.pre / cwK; A.reLpm = A.re / cwK;
+  A.coolRT = A.cool / 3024; A.coolConv = A.cool / I.coolKcal;
+  A.preRT = A.pre / 3024; A.reRT = A.re / 3024; A.preConv = A.pre / I.coolKcal; A.reConv = A.re / I.coolKcal;
+  // heating — winter (동절기 난방)
+  A.heatLoad = L.heat / n;
+  A.et = (A.ra * RM.db + A.oa * W.db) / A.sa;
+  A.lt = RM.db + A.heatLoad / 0.29 / A.sa;
+  A.heatRaw = XL.roundup(A.sa * 0.29 * (A.lt - A.et), 0);
+  A.heatCap = XL.roundup(A.heatRaw * I.heatSF, -2);
+  // heating — summer re-heat after dehumidification (하절기 난방)
+  A.tsup = RM.db - (L.total - L.proc) / n / (0.29 * A.sa);
+  A.reheatRaw = XL.roundup(A.sa * 0.29 * (A.tsup - DP.db), 0);
+  A.reheat = XL.roundup(A.reheatRaw * I.heatSF, -2);
+  A.heatSel = Math.max(A.heatCap, A.reheat);
+  A.heatGov = A.heatCap >= A.reheat ? '동절기 난방' : '하절기 난방';
+  A.heatKw = A.heatSel / 860; A.heatWKw = A.heatCap / 860; A.heatSKw = A.reheat / 860;
+  A.heatSteam = A.heatSel / 517;
+  // humidification
+  A.eh = (A.ra * RM.ah + A.oa * W.ah) / A.sa;
+  A.lh = RM.ah;
+  A.humRaw = A.sa * 1.2 * (A.lh - A.eh);
+  A.hum = XL.roundup(A.humRaw * I.humSF, 0);
+  // static pressure / fan
+  let ductV = 0;
+  A.spItems = I.spItems.map(s => {
+    let v = (s.qty != null && s.qty !== '') ? s.unit * s.qty : s.unit;
+    if (s.link === 'duct') v = ductV;
+    if (/^DUCT$/i.test((s.name || '').trim())) ductV = v;
+    return { ...s, v };
+  });
+  A.spSum = A.spItems.reduce((a, s) => a + s.v, 0);
+  A.sp = A.spSum * I.spSF;
+  A.fanKw = XL.roundup(A.sa * A.sp * 10 / 3600 / 1000 / I.fanEff * I.motorMargin, 1);
+  return A;
+}
+
+function calculate(I0) {
+  const I = { ...I0 };
+  ['area', 'ch', 'eaGen', 'eaProc', 'personDensity'].forEach(k => I[k] = +I[k] || 0);
+  const P = DESIGN_CONDITIONS.pressure;
+  const R = { warn: [] };
+  // ---- 2-1A design conditions (fixed table + user-added rows)
+  const outdoor = DESIGN_CONDITIONS.outdoor.map(o => resolveOutdoor(o, P));
+  const S = outdoor.find(o => o.id === 'SUMMER'), W = outdoor.find(o => o.id === 'WINTER');
+  const rooms = allRoomConds(I).map(c => resolveRoom(c, P));
+  let rc = rooms.find(c => c.id === I.condId);
+  if (!rc) { rc = rooms[0]; R.warn.push('선택한 설계조건을 찾을 수 없어 첫 번째 조건을 적용했습니다.'); }
+  const RM = rc.room, DP = rc.dew;
+  RM.dew = dewPoint(RM.ah, P);
+  R.air = { S, W, RM, DP, outdoor, rooms, applied: rc };
+
+  // ---- 1-1 room
+  const area = I.area, ch = I.ch, vol = area * ch;
+  const persons = I.personOverride > 0 ? I.personOverride : XL.round(area * I.personDensity, 0);
+  const eaTotal = XL.roundup(I.eaGen + I.eaProc, -1);
+  R.room = { area, ch, vol, persons, eaTotal };
+
+  // ---- 2-1A make-up air
+  const paFactor = I.paFactor;
+  const pa = XL.roundup(vol * paFactor, -2);
+  const fa = persons * I.faPerPerson;
+  const oa = Math.max(pa + eaTotal, fa);
+  R.oa = { pa, paFactor, fa, ea: eaTotal, oa, governing: (pa + eaTotal) >= fa ? 'EA+PA' : 'F.A(인원)' };
+
+  // ---- room load + air volume, solved together with BFU fan heat (BFU qty ↔ fan load ↔ S.A)
+  const solve = (fanIn) => {
+    const W_ = [];
+    // ---- 2-2 room load (non-process items)
+    const L = {
+      bldg: I.bldgUnit * area,
+      person: I.personSH * persons,
+      light: I.lightUnit * area * I.lightFactor,
+      proc: 0,
+      fan: fanIn,
+    };
+    const others = L.bldg + L.person + L.light + L.fan;
+    const sfK = 1 + I.roomSF / 100;
+
+    // ---- 2-1B process load
+    //  mode 'density': equipment power unknown → process load back-calculated from target load density (kcal/h·m²)
+    //  mode 'power'  : equipment power known  → (POWER − PCW − EXHAUST) × LOAD RATE
+    const usePCW = !!I.usePCW, useEx = !!I.useExhaust;
+    let procRows = [], procDensity = null;
+    let pH = 0, pK = 0, pM = 0, pN = 0, pKw = 0;
+    if (I.procMode === 'density') {
+      const target = I.targetDensity * area;               // total room load aimed at
+      const rate = (+I.densityRate || 100) / 100;
+      const need = target / sfK - others;
+      const nAuto = Math.max(0, XL.roundup(need, -1));
+      const kwAuto = XL.roundup(nAuto / rate, 0) / 860;    // kW that reaches the target density
+      let manual = !!I.densityKwManual && (+I.densityKw || 0) >= 0 && I.densityKw !== '';
+      if (manual) {                                        // arbitrary kW (company practice) → load → resulting density
+        pKw = +I.densityKw || 0;
+        pH = XL.roundup(pKw * 860, 0);
+        pN = XL.roundup(pH * rate, -1);
+      } else {
+        if (need < 0) W_.push(`목표 부하밀도 ${I.targetDensity} kcal/h·m²가 건물·인체·조명 부하만으로 이미 초과됩니다. 공정부하 0으로 계산했습니다.`);
+        pN = nAuto; pH = XL.roundup(pN / rate, 0); pKw = pH / 860;
+      }
+      procRows = [];
+      procDensity = { target: I.targetDensity, targetLoad: target, others, need: pN, kwEq: pKw, rate: rate * 100, powerLoad: pH, manual, kwAuto };
+    } else {
+      procRows = I.equip.map(e => {
+        const H = XL.roundup(e.qty * e.kw * 860, 0);
+        const K = usePCW ? e.pcwLpm * e.pcwDT * 60 : 0;
+        const M = useEx ? e.exCmh * 0.288 * e.exDT : 0;
+        const N = XL.roundup((H - K - M) * e.rate / 100, -1);
+        pH += H; pK += K; pM += M; pN += N; pKw += e.qty * e.kw;
+        if (N < 0) W_.push(`공정장비 "${e.name}" A/C 부하가 음수입니다(PCW/배기 제거열 > 발열). 입력을 확인하세요.`);
+        return { ...e, H, K, M, N };
+      });
+    }
+    const procTot = { H: pH, K: pK, M: pM, N: pN, kw: pKw, mode: I.procMode, usePCW, useEx };
+    L.proc = pN;
+    L.sub = L.bldg + L.person + L.light + L.proc + L.fan;
+    L.total = L.sub * (1 + I.roomSF / 100);
+    L.heat = area * I.heatUnit;
+    L.density = L.total / area;
+    L.densityW = L.total / 0.86 / area;
+
+    // ---- air volume
+    const ca = XL.roundup(vol * I.ach, -2);
+    const dT = RM.db - DP.db;
+    const saLoad = XL.roundup(L.total / 0.29 / dT, -1);
+    const saTemp = vol * I.tempACH;
+    const saCa = ca * (+I.caRatio || 0) / 100;                // minimum S.A = C.A × ratio (company practice: C.A ÷ 2)
+    const saFinal = Math.max(saLoad, oa, saCa, saTemp);
+    const gov = saFinal === saLoad ? '부하 (ΔT)' : saFinal === oa ? '외기량 (O.A)' : saFinal === saCa ? `C.A × ${+I.caRatio}%` : '온도편차 환기횟수';
+    const air2 = { ca, dT, saLoad, saTemp, saCa, saFinal, gov, achActual: saFinal / vol, caACH: ca / vol };
+    if (dT <= 0) W_.push('실내온도가 코일 출구(노점)온도보다 낮거나 같습니다.');
+    // BFU (recirculation C.A − S.A) / HFB (S.A)
+    const bfuAuto = I.bfuCMM > 0 ? Math.max(0, XL.roundup((ca - saFinal) / I.bfuCMM / 60 * I.bfuSF, 0)) : 0;
+    const hfb = I.hfbCMM > 0 ? XL.roundup(saFinal / I.hfbCMM / 60 * I.hfbSF, 0) : 0;
+    return { L, air2, procRows, procDensity, procTot, W_, bfuAuto, hfb };
+  };
+  const fanOf = q => q * I.bfuW * I.bfuFactor * 0.86;
+  let sol, bfuQty, fan;
+  if (I.fanAuto) {
+    bfuQty = I.bfuManual ? (+I.bfuQty || 0) : 0;
+    for (let it = 0; it < 12; it++) {
+      fan = fanOf(bfuQty);
+      sol = solve(fan);
+      if (I.bfuManual) break;
+      if (sol.bfuAuto === bfuQty) break;
+      bfuQty = it < 8 ? sol.bfuAuto : Math.max(bfuQty, sol.bfuAuto);
+    }
+  } else {
+    fan = +I.fanLoad || 0; sol = solve(fan);
+    bfuQty = I.bfuManual ? (+I.bfuQty || 0) : sol.bfuAuto;
+  }
+  const L = sol.L; R.load = L; R.air2 = sol.air2; R.proc = sol.procRows; R.procDensity = sol.procDensity; R.procTot = sol.procTot;
+  R.warn.push(...sol.W_);
+  R.bfu = { auto: sol.bfuAuto, qty: bfuQty, manual: !!I.bfuManual, fanAuto: !!I.fanAuto, fan: L.fan, fanCalc: fanOf(bfuQty), hfb: sol.hfb,
+            recirc: Math.max(0, sol.air2.ca - sol.air2.saFinal) };
+  R.bfu.hfbManual = !!I.hfbManual; R.bfu.hfbSel = I.hfbManual ? (+I.hfbQty || 0) : sol.hfb;
+  const { saFinal } = sol.air2;
+
+  // ---- AHU capacity: whole room (as 1 unit) and per unit (÷ AHU 대수)
+  const n = Math.max(1, Math.round(I.ahuQty || 1));
+  const ctx = { I, L, RM, DP, S, W, saFinal, oa };
+  R.ahuAll = ahuCalc(ctx, 1);
+  R.ahu = ahuCalc(ctx, n);
+  const A = R.ahu;
+  R.per = { rsh: L.total / n, heat: L.heat / n, sa: saFinal / n, oa: oa / n };
+  R.per.ra = R.per.sa - R.per.oa; R.per.oaRatio = R.per.oa / R.per.sa;
+
+  // ---- equipment schedule totals (대당 × 대수)
+  const T = { n };
+  T.sa = n * A.sa; T.oa = n * A.oa;
+  T.heatW = n * A.heatCap; T.heatS = n * A.reheat; T.heat = n * A.heatSel; T.hum = n * A.hum;
+  T.pre = n * A.pre; T.re = n * A.re;
+  T.cool = n * (A.pre + A.re);
+  T.usrt = T.cool / 3024; T.conv = T.cool / I.coolKcal;
+  T.chReq = T.conv;  // required chiller capacity in the selected basis (RT = total cooling ÷ 환산값)
+  const chSel = (rt, qty) => {
+    rt = +rt || 0;
+    const auto = rt > 0 ? XL.roundup(T.chReq / rt, 0) : 0, manual = (+qty || 0) > 0, q = manual ? Math.round(+qty) : auto;
+    return { rt, auto, manual, qty: q, total: rt * q, margin: q ? rt * q / T.chReq : 0, perReq: q ? T.chReq / q : 0 };
+  };
+  T.chAir = chSel(I.chillerRT, I.chillerQty);
+  T.chWater = chSel(I.wcChillerRT, I.wcChillerQty);
+  T.cwLpm = T.cool / (I.cwDT * 60);
+  T.fanKw = n * A.fanKw;
+  R.tot = T;
+  return R;
+}
+
+// ===== defaults = company Excel rev4 (JOOYEON, 2026-08-27) =====
+const DEFAULTS = {
+  client: '', project: '', location: 'VINH PHUC - VIETNAM',
+  docDate: '', rev: '', preparedBy: '', checkedBy: '', approvedBy: '',
+  condId: 'CR2', customConds: [],
+  roomName: 'CLEAN ROOM', building: '', area: '', floorH: '', ch: 3,
+  cleanClass: '100000', roomTtol: 2, roomRHtol: 10,
+  illum: 500, personDensity: 0.05, personOverride: 0, persons: 559, manual: {},
+  eaGen: '', eaProc: 0,
+  ach: 20, paFactor: 1, faPerPerson: 40, tempACH: 15, caRatio: 50,
+  bldgUnit: 50, heatUnit: 50, lightUnit: 20, lightFactor: 1.5, personSH: 112, fanLoad: 0, roomSF: 0,
+  bfuCMM: 28, bfuSF: 1.1, bfuW: 300, bfuFactor: 0.3, bfuQty: 0, hfbCMM: 28, hfbSF: 1.1, hfbQty: 0,
+  equip: [{ name: 'PROCESS EQUIPMENT', qty: 1, phase: 3, volt: 380, kw: 0, pcwLpm: 0, pcwDT: 5, exCmh: 0, exDT: 0, rate: 30 }],
+  procMode: 'density', targetDensity: 160, densityRate: 30, densityKw: '', usePCW: false, useExhaust: false,
+  ahuTag: 'AHU-101', ahuQty: 1, ahuType: 'FILTER(G4+F8)+PRE COOLING+RE COOLING+HEATING+HUMIDIFIER+FAN',
+  rlh: 0, coolSF: 1.1, heatSF: 1.1, humSF: 1.3, coolType: 'CW', coolKcal: 3024, cwDT: 5, cwSupply: 7, heatSource: 'ELEC.', humType: 'Electrode',
+  spSF: 1.1, fanEff: 0.7, motorMargin: 1.15, motorSel: '55 kW × 2', elec: '3Ø / 380 V / 50 Hz',
+  spItems: [
+    { name: 'PRE FILTER (AFI 85%)', unit: 10 }, { name: 'MEDIUM FILTER (NBS 90%)', unit: 20 },
+    { name: 'PRE COOLING COIL', unit: 12 }, { name: 'RE COOLING COIL', unit: 12 }, { name: 'HEATING COIL', unit: 6 },
+    { name: 'CHAMBER', unit: 5 }, { name: 'VOLUME DAMPER', unit: 5, qty: 3, uLabel: 'mmAq/EA' },
+    { name: 'HEPA FILTER', unit: 25 }, { name: 'REGISTER', unit: 5 },
+    { name: 'DUCT', unit: 0.1, qty: 270, uLabel: 'mmAq/m' }, { name: 'DUCT FITTING (Duct × 100%)', unit: 27, link: 'duct' },
+  ],
+  chillerRT: 0, chillerQty: '', wcChillerRT: 0, wcChillerQty: '', chTab: 'air',
+};
+if (typeof module !== 'undefined') module.exports = { calculate, DEFAULTS, absHum, enth, DESIGN_CONDITIONS };
+
+</script>
+<script>
+// ---------- i18n (KR / US / VN) & skin ----------
+const LOGO_SRC = 'data:image/png;base64,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';
+const LOGO_HTML = `<span class="lg"><img src="${LOGO_SRC}" alt=""><b>SHINSUNG E&amp;G<br>VIETNAM</b></span>`;
+const I18N = {"난방":["Heating","Sưởi"],"칠러":["Chiller","Chiller"],"사내":["Company","Công ty"],"대당 용량을 입력하거나 위 목록에서 고르면 수량과 여유율이 계산됩니다": ["Enter the unit capacity or pick one from the list to calculate quantity and margin", "Nhập công suất mỗi máy hoặc chọn trong danh sách để tính số lượng và hệ số dự phòng"], "선택한 설계조건을 찾을 수 없어 첫 번째 조건을 적용했습니다": ["Selected design condition not found; the first condition was applied", "Không tìm thấy điều kiện thiết kế đã chọn; đã áp dụng điều kiện đầu tiên"], "이 미리보기 화면에서는 인쇄가 막혀 있을 수 있습니다": ["Printing may be blocked in this preview", "Chức năng in có thể bị chặn trong màn hình xem trước này"], "가 건물·인체·조명 부하만으로 이미 초과됩니다": ["is already exceeded by building, person and lighting loads alone", "đã bị vượt chỉ bởi tải tòa nhà, người và chiếu sáng"], "필수 입력값을 넣으면 습공기 선도가 표시됩니다": ["Enter the required inputs to show the psychrometric chart", "Nhập các giá trị bắt buộc để hiển thị biểu đồ trắc ẩm"], "옵션을 켜면 강조 셀 색이 함께 출력됩니다": ["option to print highlighted cell colors", "để in cả màu ô được tô"], "면적 등 필수 입력값을 먼저 넣어주세요": ["Please enter the required inputs (area, etc.) first", "Vui lòng nhập trước các giá trị bắt buộc (diện tích, v.v.)"], "추가 조건은 절대습도·노점온도를 비우면": ["For added conditions, leave AH / dew point blank to", "Với điều kiện bổ sung, để trống độ ẩm tuyệt đối / điểm sương thì"], "로 만든 내용을 그대로 붙여넣으세요": ["and paste the text as is", "và dán nguyên nội dung"], "기준값 자동 계산으로 되돌렸습니다": ["Reverted to automatic standard value", "Đã trở về giá trị tiêu chuẩn tự động"], "상자 안 내용을 직접 복사하세요": ["Please copy the text in the box manually", "Vui lòng tự sao chép nội dung trong ô"], "입력하면 계산 결과가 표시됩니다": ["to see the calculation results", "để hiển thị kết quả tính toán"], "기준값 자동 계산으로 되돌리기": ["Revert to automatic standard value", "Trở về giá trị tiêu chuẩn tự động"], "입력값을 붙여넣어 불러옵니다": ["Paste copied inputs to load them", "Dán dữ liệu đã sao chép để tải"], "생산설비 전기용량을 알 때": ["When equipment power is known", "Khi biết công suất điện thiết bị"], "을 클립보드에 복사했습니다": ["copied to clipboard", "đã sao chép vào bộ nhớ tạm"], "자동 복사가 막혀 있습니다": ["Automatic copy is blocked.", "Sao chép tự động bị chặn."], "대 기준 공기 상태 변화": ["unit basis — air state changes", "máy — thay đổi trạng thái không khí"], "면적·층고·청정도·온습도": ["Area · height · cleanliness · temp/RH", "Diện tích · chiều cao · độ sạch · nhiệt/ẩm"], "에서 선택할 수 있습니다": ["can be selected there", "có thể chọn tại đó"], "온도보다 낮거나 같습니다": ["temperature or lower", "hoặc thấp hơn nhiệt độ"], "장비 용량 미상 시 임의": ["If equipment capacity is unknown, use assumed", "Khi chưa biết công suất thiết bị, dùng giá trị giả định"], "형식이 올바르지 않습니다": ["format is invalid", "định dạng không hợp lệ"], "환산값은 직접 수정 가능": ["conversion value editable", "có thể sửa giá trị quy đổi"], "기본값으로 복원했습니다": ["defaults restored", "đã khôi phục mặc định"], "설계조건을 추가했습니다": ["Design condition added", "Đã thêm điều kiện thiết kế"], "공정배기 제거열 차감": ["Deduct process exhaust heat", "Trừ nhiệt thải khí công nghệ"], "기본값으로 되돌립니다": ["defaults", "về mặc định"], "기준표에서 자동 입력": ["Auto-filled from standard tables", "Tự động theo bảng tiêu chuẩn"], "냉방 용량 환산 기준": ["Cooling capacity basis", "Cơ sở quy đổi công suất lạnh"], "로 면적당 부하 확인": ["to check load per area", "để kiểm tra tải trên diện tích"], "실내온도가 코일 출구": ["Room temperature is at coil leaving", "Nhiệt độ phòng bằng nhiệt độ ra khỏi coil"], "입력 검토 사항 없음": ["No input issues", "Không có vấn đề đầu vào"], "입력값을 불러왔습니다": ["Inputs loaded", "Đã tải dữ liệu"], "장비 용량을 모를 때": ["Equipment capacity unknown", "Khi chưa biết công suất thiết bị"], "청정도 유지 환기횟수": ["Air changes for cleanliness", "Số lần trao đổi gió theo độ sạch"], "공정부하 산정 방식": ["Process load method", "Phương pháp tính tải công nghệ"], "대 기준으로 재계산": ["units, recalculated per unit", "máy, tính lại cho mỗi máy"], "로 자동 계산됩니다": ["are calculated automatically", "sẽ được tính tự động"], "보고서 표지·머리말": ["Report cover · header", "Bìa · tiêu đề báo cáo"], "설계조건 추가 가능": ["conditions can be added", "có thể thêm điều kiện"], "수정한 항목은 유지": ["edited items kept", "giữ các mục đã sửa"], "외기 및 설계 조건": ["Outdoor & Design Conditions", "Điều kiện ngoài trời & thiết kế"], "지우면 권장값 적용": ["clear to use recommended", "xóa để dùng giá trị đề xuất"], "환기횟수·가압·외기": ["Air changes · pressurization · OA", "Trao đổi gió · tạo áp · gió tươi"], "로 부하밀도 확인": ["to check load density", "để kiểm tra mật độ tải"], "면적당 부하 기준": ["Load per area basis", "Theo tải trên diện tích"], "배경 그래픽 켜기": ["background graphics on", "bật đồ họa nền"], "부하가 음수입니다": ["load is negative", "tải bị âm"], "온도편차 환기횟수": ["Air changes for temp. deviation", "Trao đổi gió theo dao động nhiệt"], "으로 계산했습니다": ["was used", "đã được dùng"], "인쇄 대화상자에서": ["In the print dialog, turn on", "Trong hộp thoại in, bật"], "입력을 확인하세요": ["Check the inputs", "Kiểm tra dữ liệu nhập"], "조명부하 할증계수": ["Lighting load factor", "Hệ số tăng tải chiếu sáng"], "회사 표준 고정값": ["Company standard (fixed)", "Tiêu chuẩn công ty (cố định)"], "값을 직접 수정": ["Edit value manually", "Sửa giá trị thủ công"], "건물·인체·조명": ["Building · person · lighting", "Tòa nhà · người · chiếu sáng"], "공정 장비 발열": ["Process Equipment Heat", "Nhiệt thiết bị công nghệ"], "냉방 용량 환산": ["Cooling conversion", "Quy đổi công suất lạnh"], "대당 필요 용량": ["Required per unit", "Công suất cần mỗi máy"], "실내부하 안전율": ["Room load safety factor", "Hệ số an toàn tải phòng"], "에서 직접 열어": ["directly and press", "trực tiếp và nhấn"], "을 붙여넣으세요": ["paste here", "dán vào đây"], "입력값 불러오기": ["Load Inputs", "Tải dữ liệu"], "자동 산정 수량": ["Auto quantity", "Số lượng tự động"], "장비 전력 입력": ["Equipment power input", "Nhập công suất thiết bị"], "장비 행은 최소": ["At least", "Cần tối thiểu"], "정압 항목 추가": ["Add static pressure item", "Thêm hạng mục áp suất tĩnh"], "조명부하 원단위": ["Lighting load unit", "Đơn vị tải chiếu sáng"], "최종 선정 기준": ["final selection basis", "theo lựa chọn cuối"], "최종 선정 수량": ["Final quantity", "Số lượng chọn cuối"], "파일을 브라우저": ["file in a browser", "tệp trong trình duyệt"], "필수 입력 누락": ["Missing required input", "Thiếu dữ liệu bắt buộc"], "가압풍량 계수": ["Pressurization factor", "Hệ số gió tạo áp"], "개 필요합니다": ["row is required", "dòng là bắt buộc"], "건물 현열부하": ["Building sensible load", "Tải hiện tòa nhà"], "공정부하 산정": ["Process load method", "Cách tính tải công nghệ"], "공정부하 합계": ["Process load total", "Tổng tải công nghệ"], "노점 건구온도": ["Dew point DB", "Nhiệt độ khô điểm sương"], "노점 상대습도": ["Dew point RH", "Độ ẩm tương đối điểm sương"], "대로 나눈 뒤": ["units, then", "máy, sau đó"], "대로 본 용량": ["unit", "máy"], "로 저장해 둔": ["saved via", "đã lưu bằng"], "목표 부하밀도": ["Target load density", "Mật độ tải mục tiêu"], "발열이 없으면": ["If there is no heat,", "Nếu không có nhiệt,"], "비워두면 권장": ["Blank = recommended", "Để trống = đề xuất"], "설계조건 추가": ["Add design condition", "Thêm điều kiện thiết kế"], "습도 허용편차": ["RH tolerance", "Dung sai độ ẩm"], "실 부하 요약": ["Room Load Summary", "Tóm tắt tải phòng"], "실 전체 기준": ["Whole room basis", "Theo toàn phòng"], "실내 냉방부하": ["Room cooling load", "Tải lạnh phòng"], "실내 부하밀도": ["Room load density", "Mật độ tải phòng"], "실내 잠열부하": ["Room latent load", "Tải ẩn phòng"], "실제 냉각용량": ["Actual cooling capacity", "Công suất lạnh thực tế"], "온도 허용편차": ["Temp. tolerance", "Dung sai nhiệt độ"], "온도편차 풍량": ["Temp. deviation airflow", "Lưu lượng theo dao động nhiệt"], "인체 현열부하": ["Person sensible load", "Tải hiện do người"], "적용 설계조건": ["Applied design condition", "Điều kiện thiết kế áp dụng"], "총 난방 용량": ["Total heating capacity", "Tổng công suất sưởi"], "총 냉방 용량": ["Total cooling capacity", "Tổng công suất lạnh"], "프로젝트 정보": ["Project Information", "Thông tin dự án"], "현재 입력값을": ["Current inputs", "Dữ liệu hiện tại"], "환기횟수 환산": ["equivalent air changes", "số lần trao đổi gió quy đổi"], "가습 안전율": ["Humidifier safety factor", "Hệ số an toàn tạo ẩm"], "공냉식 칠러": ["Air-cooled chiller", "Chiller giải nhiệt gió"], "공조기 대수": ["AHU quantity", "Số lượng AHU"], "공조기 용량": ["AHU Capacity", "Công suất AHU"], "기본값 복원": ["Reset Defaults", "Khôi phục mặc định"], "기준 벗어남": ["Out of range", "Ngoài tiêu chuẩn"], "기준값 적용": ["standard values applied", "áp dụng giá trị tiêu chuẩn"], "동절기 난방": ["Winter heating", "Sưởi mùa đông"], "배경 그래픽": ["Background graphics", "Đồ họa nền"], "배기 제거열": ["Exhaust heat removed", "Nhiệt khí thải lấy đi"], "보고서 출력": ["Print Report", "In báo cáo"], "부하 원단위": ["Load Unit Values", "Đơn vị tải"], "수냉식 칠러": ["Water-cooled chiller", "Chiller giải nhiệt nước"], "수량 여유율": ["quantity margin", "hệ số dự phòng số lượng"], "습공기 선도": ["Psychrometric Chart", "Biểu đồ trắc ẩm"], "실 전체 값": ["whole room value", "giá trị toàn phòng"], "엑셀 원본은": ["Original Excel uses", "Excel gốc dùng"], "으로 두세요": ["set to", "đặt bằng"], "을 누르세요": ["press", "nhấn"], "인당 외기량": ["OA per person", "Gió tươi mỗi người"], "입력값 복사": ["Copy Inputs", "Sao chép dữ liệu"], "제거열 차감": ["heat deduction", "trừ nhiệt"], "하절기 난방": ["Summer heating", "Sưởi mùa hè"], "함께 전달된": ["the delivered", "được gửi kèm"], "현열만 고려": ["sensible only", "chỉ tính tải hiện"], "가습 용량": ["Humidification", "Công suất tạo ẩm"], "검토 사항": ["Review Items", "Mục cần xem xét"], "결정 근거": ["governed by", "căn cứ quyết định"], "공정 배기": ["Process exhaust", "Khí thải công nghệ"], "기준 역산": ["back-calculated", "tính ngược"], "기준 이내": ["Within range", "Trong tiêu chuẩn"], "난방 용량": ["Heating capacity", "Công suất sưởi"], "냉각 방식": ["Cooling type", "Kiểu làm lạnh"], "냉각·제습": ["cooling · dehumidifying", "làm lạnh · tách ẩm"], "냉방 용량": ["Cooling capacity", "Công suất lạnh"], "단위 올림": ["rounded up", "làm tròn lên"], "당사 표준": ["Company standard", "Tiêu chuẩn công ty"], "대당 용량": ["Capacity per unit", "Công suất mỗi máy"], "발열 계수": ["heat factor", "hệ số tỏa nhiệt"], "복사해 둔": ["copied", "đã sao chép"], "부하 밀도": ["Load density", "Mật độ tải"], "부하계산서": ["Heat Load Calculation", "Bảng tính tải nhiệt"], "사내 기준": ["Company std.", "Tiêu chuẩn công ty"], "선정 수량": ["selected qty", "số lượng chọn"], "설계 조건": ["Design Conditions", "Điều kiện thiết kế"], "세로 기준": ["portrait", "khổ dọc"], "수정 가능": ["editable", "có thể sửa"], "실 사양의": ["Room spec", "Thông số phòng"], "실 전체를": ["whole room as", "toàn phòng như"], "여백 없음": ["no margins", "không lề"], "외기 비율": ["OA ratio", "Tỷ lệ gió tươi"], "용량 부족": ["capacity insufficient", "thiếu công suất"], "으로 복사": ["as", "dưới dạng"], "일반 배기": ["General exhaust", "Khí thải chung"], "일반룸 약": ["general room abt.", "phòng thường khoảng"], "임의 입력": ["assumed input", "nhập giả định"], "장비 추가": ["Add equipment", "Thêm thiết bị"], "재실 밀도": ["Occupant density", "Mật độ người"], "재실 인원": ["Occupants", "Số người"], "전체 기준": ["whole basis", "theo toàn bộ"], "정압 계산": ["Static pressure calc.", "Tính áp suất tĩnh"], "조건 삭제": ["Delete condition", "Xóa điều kiện"], "직접 입력": ["Manual", "Nhập tay"], "총 급기량": ["Total supply air", "Tổng gió cấp"], "추가 항목": ["Added item", "Hạng mục thêm"], "칠러 선정": ["Chiller Selection", "Chọn chiller"], "코일 출구": ["Coil leaving", "Ra khỏi coil"], "풍량 기준": ["Airflow Criteria", "Tiêu chí lưu lượng gió"], "필수 입력": ["Required", "Bắt buộc"], "필요 용량": ["Required capacity", "Công suất cần"], "환산 전력": ["Equivalent power", "Công suất quy đổi"], "회사 엑셀": ["company Excel", "Excel công ty"], "가습 후": ["After humidification", "Sau tạo ẩm"], "가압계수": ["pressurization factor", "hệ số tạo áp"], "가열 후": ["After heating", "Sau gia nhiệt"], "건구온도": ["Dry bulb", "Nhiệt độ khô"], "공정부하": ["Process load", "Tải công nghệ"], "공정장비": ["Process equip.", "Thiết bị công nghệ"], "난방부하": ["Heating load", "Tải sưởi"], "단위풍량": ["unit airflow", "lưu lượng đơn vị"], "대 기준": ["unit basis", "máy"], "대당 값": ["Per-unit value", "Giá trị mỗi máy"], "불러오기": ["Load", "Tải"], "상대습도": ["Relative humidity", "Độ ẩm tương đối"], "순환풍량": ["Circulation air", "Gió tuần hoàn"], "온도편차": ["Temp. deviation", "Dao động nhiệt"], "와 노점": ["and dew point", "và điểm sương"], "입력으로": ["Back to inputs", "Về nhập liệu"], "재열 후": ["after re-heat", "sau gia nhiệt lại"], "절대습도": ["Absolute humidity", "Độ ẩm tuyệt đối"], "총 가습": ["Total humidification", "Tổng tạo ẩm"], "총 냉방": ["total cooling", "tổng lạnh"], "코일출구": ["coil leaving", "ra coil"], "행 삭제": ["Delete row", "Xóa dòng"], "환기횟수": ["air changes", "số lần trao đổi gió"], "공냉식": ["Air-cooled", "Giải nhiệt gió"], "공조기": ["AHU", "AHU"], "급기량": ["Supply air", "Gió cấp"], "기준값": ["standard", "giá trị chuẩn"], "냉수량": ["Chilled water flow", "Lưu lượng nước lạnh"], "대 중": ["units total", "máy tổng"], "동절기": ["Winter", "Mùa đông"], "면적당": ["Per area", "Theo diện tích"], "보고서": ["Report", "Báo cáo"], "부하율": ["load rate", "hệ số tải"], "상태점": ["State point", "Điểm trạng thái"], "수냉식": ["Water-cooled", "Giải nhiệt nước"], "실용적": ["room volume", "thể tích phòng"], "안전율": ["safety factor", "hệ số an toàn"], "엔탈피": ["Enthalpy", "Enthalpy"], "여유율": ["Margin", "Dự phòng"], "외기량": ["Outdoor air", "Gió tươi"], "일반룸": ["General room", "Phòng thường"], "일반실": ["General room", "Phòng thường"], "입력값": ["Inputs", "Dữ liệu"], "작성일": ["Date", "Ngày lập"], "장비명": ["Equipment", "Thiết bị"], "조건명": ["Condition name", "Tên điều kiện"], "천장고": ["Ceiling height", "Chiều cao trần"], "청정도": ["Cleanliness", "Độ sạch"], "청회색": ["blue-gray", "xám xanh"], "클린룸": ["Clean room", "Phòng sạch"], "풍량을": ["airflow by", "lưu lượng chia"], "하절기": ["Summer", "Mùa hè"], "환산값": ["Conversion", "Giá trị quy đổi"], "가습": ["Humidification", "Tạo ẩm"], "가열": ["Heating", "Gia nhiệt"], "건물": ["Building", "Tòa nhà"], "검토": ["Checked", "Kiểm tra"], "결과": ["Result", "Kết quả"], "계수": ["factor", "hệ số"], "고정": ["Fixed", "Cố định"], "곡선": ["curves", "đường cong"], "권장": ["Recommended", "Đề xuất"], "급기": ["Supply", "Gió cấp"], "기본": ["Default", "Mặc định"], "기준": ["basis", "theo"], "길이": ["length", "chiều dài"], "냉각": ["Cooling", "Làm lạnh"], "노점": ["dew point", "điểm sương"], "단위": ["unit", "đơn vị"], "대당": ["Per unit", "Mỗi máy"], "대비": ["ratio to", "so với"], "대수": ["Qty", "Số lượng"], "면적": ["Area", "Diện tích"], "목표": ["Target", "Mục tiêu"], "발열": ["Heat", "Nhiệt tỏa"], "배기": ["Exhaust", "Khí thải"], "부족": ["Insufficient", "Thiếu"], "부하": ["Load", "Tải"], "비율": ["ratio", "tỷ lệ"], "사양": ["Spec", "Thông số"], "선정": ["Selected", "Chọn"], "세로": ["portrait", "dọc"], "소계": ["Subtotal", "Tổng phụ"], "수량": ["Qty", "Số lượng"], "수정": ["Edit", "Sửa"], "승인": ["Approved", "Phê duyệt"], "실내": ["Room", "Phòng"], "실명": ["Room name", "Tên phòng"], "역산": ["Back-calc.", "Tính ngược"], "외기": ["Outdoor air", "Gió tươi"], "인쇄": ["Print", "In"], "인원": ["persons", "người"], "인체": ["Person", "Người"], "임의": ["assumed", "giả định"], "입력": ["Input", "Nhập"], "자동": ["Auto", "Tự động"], "작성": ["Prepared", "Lập"], "재열": ["re-heat", "gia nhiệt lại"], "저장": ["Save", "Lưu"], "적용": ["Applied", "Áp dụng"], "전력": ["Power", "Công suất"], "전체": ["Total", "Toàn bộ"], "점선": ["dotted", "nét đứt"], "정압": ["Static pressure", "Áp suất tĩnh"], "조도": ["Illuminance", "Độ rọi"], "조명": ["Lighting", "Chiếu sáng"], "참고": ["Ref.", "Tham khảo"], "참조": ["see", "xem"], "최소": ["Min.", "Tối thiểu"], "최종": ["Final", "Cuối"], "충족": ["OK", "Đạt"], "취소": ["Cancel", "Hủy"], "풍량": ["Airflow", "Lưu lượng gió"], "필요": ["Required", "Cần"], "합계": ["Total", "Tổng"], "항목": ["Item", "Hạng mục"], "혼합": ["Mixed", "Hòa trộn"], "환기": ["Return", "Gió hồi"], "히팅": ["Heating", "Sưởi"], "대": ["units", "máy"], "동": ["Bldg.", "Tòa"], "를": ["", ""], "실": ["Room", "Phòng"], "을": ["", ""], "인": ["persons", "người"], "층": ["Floor", "Tầng"], "회": ["times", "lần"]};
+const PHRASES = {
+  '클린룸 HVAC 부하계산서': ['Clean Room HVAC Load Calculation','Bảng tính tải HVAC phòng sạch'],
+  '실(ROOM) 사양': ['Room Spec','Thông số phòng'],
+};
+let UI = { lang:'ko', skin:'black' };
+try{ const u=JSON.parse(localStorage.getItem('crLoadCalc.ui')||'{}'); Object.assign(UI,u); }catch(e){}
+const LI = () => UI.lang==='en'?0:UI.lang==='vi'?1:-1;
+function trText(src){
+  const li=LI(); if(li<0 || !src || !/[가-힣]/.test(src)) return src;
+  const t=src.trim(); if(PHRASES[t]) return src.replace(t, PHRASES[t][li]);
+  return src.replace(/[가-힣]+(?:[ ·][가-힣]+)*/g, run=>{
+    if(I18N[run]) return I18N[run][li];
+    return run.split(/([ ·])/).map(w=> I18N[w]? I18N[w][li] : w).join('');
+  }).replace(/  +/g,' ');
+}
+const TR_ATTRS=['placeholder','title','aria-label'];
+function trDOM(root){
+  if(!root) return;
+  const li=LI();
+  const tw=document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {acceptNode:n=>{ const p=n.parentNode&&n.parentNode.nodeName; return (p==='SCRIPT'||p==='STYLE')?NodeFilter.FILTER_REJECT:NodeFilter.FILTER_ACCEPT; }});
+  let n; while((n=tw.nextNode())){ if(n.__ko===undefined){ if(!/[가-힣]/.test(n.nodeValue)) continue; n.__ko=n.nodeValue; } n.nodeValue = li<0 ? n.__ko : trText(n.__ko); }
+  root.querySelectorAll('[placeholder],[title],[aria-label]').forEach(el=>TR_ATTRS.forEach(a=>{ if(!el.hasAttribute(a)) return; const k='ko'+a.replace(/-/g,''); if(el.dataset[k]===undefined){ const v=el.getAttribute(a); if(!/[가-힣]/.test(v)) return; el.dataset[k]=v; } el.setAttribute(a, li<0? el.dataset[k] : trText(el.dataset[k])); }));
+}
+function applyUI(){
+  document.documentElement.setAttribute('data-skin', UI.skin);
+  document.documentElement.lang = UI.lang==='en'?'en':UI.lang==='vi'?'vi':'ko';
+  document.querySelectorAll('[data-lang]').forEach(b=>b.setAttribute('aria-pressed', b.dataset.lang===UI.lang));
+  document.querySelectorAll('[data-skin]').forEach(b=>{ if(b.tagName==='BUTTON') b.setAttribute('aria-pressed', b.dataset.skin===UI.skin); });
+  document.title = trText('클린룸 HVAC 부하계산서');
+  try{ localStorage.setItem('crLoadCalc.ui', JSON.stringify(UI)); }catch(e){}
+}
+document.addEventListener('click', e=>{
+  const b=e.target.closest && e.target.closest('[data-lang],button[data-skin]'); if(!b) return;
+  if(b.dataset.lang){ UI.lang=b.dataset.lang; applyUI(); $('side').innerHTML=''; rebuild(); trDOM(document.querySelector('header')); trDOM($('report')); if($('report').style.display==='block') buildReport(); trDOM(document.getElementById('pasteDlg')); }
+  else { UI.skin=b.dataset.skin; applyUI(); }
+});
+
+// ---------- reference tables (from Excel 2-1A / 2-2 reference data) ----------
+const CLASS_TBL = {
+  '10':     {label:'Class 10',     ach:200, achRange:'200~600', pa:2.5},
+  '100':    {label:'Class 100',    ach:200, achRange:'200~600', pa:2.0},
+  '1000':   {label:'Class 1,000',  ach:50,  achRange:'50~70',   pa:1.5},
+  '5000':   {label:'Class 5,000',          ach:35,  achRange:'35',      pa:1.5},
+  '10000':  {label:'Class 10,000', ach:30,  achRange:'30~40',   pa:1.5},
+  '100000': {label:'Class 100,000',ach:20,  achRange:'20~30',   pa:1.0},
+  'GR':     {label:'일반실 (G.R)',          ach:8,   achRange:'8',       pa:0.5, fa:25},
+};
+const LUX_TBL = {300:15, 500:20, 700:25};
+const CHILLER_RT = [115,135,170,195,210,245,280,295,335,380,420,480];   // air cooled screw chiller, fixed speed (reference)
+const WC_CHILLER_RT = [600,650,700,750,800,850,900,950,1000,1100,1200,1300]; // water cooled chiller CCWF***EV (reference)
+const CH_TYPES = {
+  air:   {name:'공냉식 칠러', rtK:'chillerRT', qK:'chillerQty', list:CHILLER_RT, listLabel:'Air cooled screw chiller — fixed speed (RT)', tKey:'chAir', en:'AIR COOLED CHILLER'},
+  water: {name:'수냉식 칠러', rtK:'wcChillerRT', qK:'wcChillerQty', list:WC_CHILLER_RT, listLabel:'Water cooled chiller — CCWF***EV (RT)', tKey:'chWater', en:'WATER COOLED CHILLER'},
+};
+const TEMPTOL_TBL = {3:10, 2:15, 1:25, 0.5:60, 0.1:120};
+const personSHfor = t => Math.round(118 - 3*(t-20));   // 20℃:118, 22℃:112, 24℃:106 kcal/h·인
+// Values derived from 1-1 ROOM SPEC — shown grey (auto) unless the user presses 수정
+const roomDB = () => { const c=allRoomConds(S).find(x=>x.id===S.condId)||DESIGN_CONDITIONS.rooms[0]; return +c.db; };
+const clsOf = () => CLASS_TBL[S.cleanClass]||CLASS_TBL['100000'];
+const isGR = () => S.condId==='GR' || S.cleanClass==='GR';   // general room: by applied design condition or cleanliness
+const AUTO = {
+  persons:     {val:()=>Math.round(S.area*S.personDensity), basis:()=>`면적 ${fmt(S.area)} m² × ${S.personDensity} 인/m²`},
+  lightUnit:   {val:()=>LUX_TBL[S.illum]??20,               basis:()=>`조도 ${S.illum} lux 기준 (300:15 / 500:20 / 700:25)`},
+  personSH:    {val:()=>personSHfor(roomDB()),               basis:()=>`실내 ${roomDB()}℃ 기준 (20℃ 118 / 22℃ 112 / 24℃ 106)`},
+  ach:         {val:()=>clsOf().ach,                         basis:()=>`${clsOf().label} 기준 (${clsOf().achRange}회)`},
+  paFactor:    {val:()=>clsOf().pa,                          basis:()=>`${clsOf().label} 기준`},
+  faPerPerson: {val:()=>isGR()?25:40,                        basis:()=>`${isGR()?'G/R':'C/R'} 기준 (C/R 40, G/R 25)${S.condId==='GR'?' · 적용 설계조건 GENERAL ROOM':''}`},
+  tempACH:     {val:()=>TEMPTOL_TBL[S.roomTtol]??15,         basis:()=>`온도편차 ±${S.roomTtol}℃ 기준`},
+  fanLoad:     {val:()=>R&&R.bfu?R.bfu.fanCalc:0,           basis:()=>R&&R.bfu?`BFU ${R.bfu.qty}대 × ${fmt(S.bfuW)} W × ${S.bfuFactor} × 0.86`:''},
+  bfuQty:      {val:()=>R&&R.bfu?R.bfu.auto:0,              basis:()=>R&&R.air2?`(C.A ${fmt(R.air2.ca)} − S.A ${fmt(R.air2.saFinal)}) ÷ ${S.bfuCMM} CMM ÷ 60 × ${S.bfuSF}`:''},
+  hfbQty:      {val:()=>R&&R.bfu?R.bfu.hfb:0,               basis:()=>R&&R.air2?`S.A ${fmt(R.air2.saFinal)} ÷ ${S.hfbCMM} CMM ÷ 60 × ${S.hfbSF}`:''},
+  targetDensity:{val:()=>isGR()?100:160,        basis:()=>`${isGR()?'일반룸':'클린룸'} 사내 기준 (클린룸 150~200 / 일반룸 약 100)`},
+};
+function applyAuto(){
+  S.manual = S.manual||{};
+  for(const k in AUTO) if(!S.manual[k]) S[k]=AUTO[k].val();
+  S.personOverride = S.manual.persons ? (+S.persons||0) : 0;
+  S.densityKwManual = S.densityKw!=='' && S.densityKw!=null;
+  S.fanAuto = !S.manual.fanLoad; S.bfuManual = !!S.manual.bfuQty; S.hfbManual = !!S.manual.hfbQty;
+}
+
+// ---------- state ----------
+const clone = o => JSON.parse(JSON.stringify(o));
+let S = clone(DEFAULTS);
+try{ const s = localStorage.getItem('crLoadCalc.v21'); if(s){ S = Object.assign(clone(DEFAULTS), JSON.parse(s)); } }catch(e){}
+const save = () => { try{ localStorage.setItem('crLoadCalc.v21', JSON.stringify(S)); }catch(e){} };
+
+const fmt = (x,d=0) => (x==null||isNaN(x)||!isFinite(x)) ? '-' : (Math.abs(x)<1e-9?0:Number(x)).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $ = id => document.getElementById(id);
+function toast(m){ const t=$('toast'); t.textContent=trText(m); t.style.display='block'; clearTimeout(toast._t); toast._t=setTimeout(()=>t.style.display='none',2600); }
+
+// ---------- input form spec ----------
+// [key, label, unit, type, opts]
+const SECTIONS = [
+ {no:'0', title:'프로젝트 정보', hint:'보고서 표지·머리말', open:false, fields:[
+   ['client','Client','','text',{wide:1}],['project','Project','','text',{wide:1}],['location','Location','','text',{wide:1}],
+   ['docDate','작성일','','date'],['rev','Revision','','text'],
+   ['preparedBy','작성','','text'],['checkedBy','검토','','text'],['approvedBy','승인','','text'],
+ ]},
+ {no:'2-1', title:'외기 및 설계 조건', hint:'회사 표준 고정값 · 설계조건 추가 가능', open:true, cond:true},
+ {no:'1-1', title:'실(ROOM) 사양', hint:'면적·층고·청정도·온습도', open:true, fields:[
+   ['roomName','실명','','text'],['building','층/동','','text',{req:1}],
+   ['area','면적','m²','number',{req:1}],['ch','천장고 (C.H)','m','number'],
+   ['cleanClass','청정도 (@0.5㎛)','','select',{opts:Object.entries(CLASS_TBL).map(([k,v])=>[k,v.label])}],
+   ['condId','적용 설계조건','','cond'],
+   ['roomTtol','온도 허용편차 ±','℃','select',{opts:[[3,'±3'],[2,'±2'],[1,'±1'],[0.5,'±0.5'],[0.1,'±0.1']]}],
+   ['roomRHtol','습도 허용편차 ±','%','number'],
+   ['illum','조도','LUX','select',{opts:[[300,'300'],[500,'500'],[700,'700']]}],
+   ['personDensity','재실 밀도','인/m²','number',{step:0.01}],['persons','재실 인원','인','number',{auto:1,step:1}],
+   ['eaGen','일반 배기 (EA GEN)','CMH','number',{req:1}],['eaProc','공정 배기 (EA PROCESS)','CMH','number'],
+ ]},
+ {no:'2-2', title:'부하 원단위', hint:'기준표에서 자동 입력, 수정 가능', open:true, fields:[
+   ['bldgUnit','건물 현열부하 (하절기)','kcal/h·m²','number'],['heatUnit','난방부하 (동절기)','kcal/h·m²','number'],
+   ['lightUnit','조명부하 원단위','kcal/h·m²','number',{auto:1}],['lightFactor','조명부하 할증계수','×','number',{step:0.1}],
+   ['personSH','인체 현열부하','kcal/h·인','number',{auto:1}],
+   ['fanLoad','FAN 발열 (BFU)','kcal/h','number',{auto:1}],['roomSF','실내부하 안전율','%','number'],
+ ]},
+ {no:'AIR', title:'풍량 기준', hint:'환기횟수·가압·외기', open:true, fields:[
+   ['ach','청정도 유지 환기횟수 (C.A)','회/h','number',{auto:1}],['paFactor','가압풍량 계수 (실용적 ×)','×','number',{auto:1,step:0.1}],
+   ['faPerPerson','1인당 외기량','CMH/인','number',{auto:1}],['tempACH','온도편차 환기횟수','회/h','number',{auto:1}],
+   ['caRatio','S.A 최소 (C.A 대비)','%','number',{small:'최종 S.A ≥ C.A × 비율 (기본 50% = C.A ÷ 2)'}],
+ ]},
+ {no:'BFU', title:'BFU · HFB', hint:'순환풍량(C.A − S.A) → BFU · 급기(S.A) → HFB', open:true, fields:[
+   ['bfuCMM','BFU 단위풍량','CMM','number'],['bfuSF','BFU 수량 여유율','×','number',{step:0.05}],
+   ['bfuW','BFU 대당 FAN 전력','W','number'],['bfuFactor','FAN 발열 계수','×','number',{step:0.05,small:'FAN 발열 = BFU 수량 × 전력(W) × 계수 × 0.86'}],
+   ['bfuQty','BFU 선정 수량','대','number',{auto:1,step:1}],
+   ['hfbCMM','HFB 단위풍량','CMM','number'],['hfbSF','HFB 수량 여유율','×','number',{step:0.05}],
+   ['hfbQty','HFB 선정 수량','대','number',{auto:1,step:1}],
+ ]},
+ {no:'2-1B', title:'공정 장비 발열', hint:'장비 용량 미상 시 임의 kW로 면적당 부하 확인', open:true, equip:true},
+ {no:'3-1', title:'AHU 설계 조건', hint:'안전율 · 냉각 방식', open:true, fields:[
+   ['coolSF','냉각 CAP. 안전율','×','number',{step:0.05}],['heatSF','히팅 CAP. 안전율','×','number',{step:0.05}],['humSF','가습 안전율','×','number',{step:0.05}],
+   ['coolType','냉방 용량 환산 기준','','select',{opts:[['DX','공냉식'],['CW','수냉식']]}],
+   ['coolKcal','환산값','kcal/h','number',{small:'당사 표준: 공냉식 1HP 2,150 · 수냉식 1RT 3,024 kcal/h'}],
+   ['rlh','실내 잠열부하 R.L.H','kcal/h','number',{small:'전체 기준 · 엑셀 원본은 0 (현열만 고려)'}],
+ ]},
+];
+
+function fieldHTML([k,label,unit,type,o={}]){
+  const v = S[k];
+  if(type==='text'||type==='date'){
+    return `<div class="f${o.wide?' wide':''}" ${o.wide?'':'style="grid-template-columns:1fr 170px"'}><label for="i_${k}">${label}</label><input id="i_${k}" data-k="${k}" type="${type}" value="${esc(v)}"${o.req?' class="req" placeholder="직접 입력"':''}></div>`;
+  }
+  if(type==='select'){
+    return `<div class="f"><label for="i_${k}">${label}</label><select id="i_${k}" data-k="${k}">${o.opts.map(([a,b])=>`<option value="${a}"${String(a)===String(v)?' selected':''}>${b}</option>`).join('')}</select><span class="u">${unit}</span></div>`;
+  }
+  if(type==='cond'){
+    return `<div class="f wide" style="grid-template-columns:160px 1fr"><label for="i_condId">${label}</label><div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap"><select id="i_condId" data-k="condId" style="max-width:260px">${condOptions()}</select><span id="condInfo" class="u" style="font-size:12px"></span></div></div>`;
+  }
+  if(type==='ah'){
+    return `<div class="f"><label for="i_${k}">${label}</label><input id="i_${k}" data-k="${k}" data-ah="1" type="number" step="0.000001" value="${v===''||v==null?'':v}" placeholder="auto"><span class="u">${unit}</span><small id="h_${k}"></small></div>`;
+  }
+  if(o.auto){
+    const man=!!(S.manual&&S.manual[k]);
+    return `<div class="f af"><label for="i_${k}">${label}</label><input id="i_${k}" data-k="${k}" type="number" step="${o.step||'any'}" value="${v}" ${man?'':'readonly class="auto"'}><span class="u">${unit}</span><button type="button" class="btn mini" data-autobtn="${k}" title="${man?'기준값 자동 계산으로 되돌리기':'값을 직접 수정'}">${man?'자동':'수정'}</button><small id="h_${k}"></small></div>`;
+  }
+  if(o.chips){
+    return `<div class="f wide" style="grid-template-columns:160px 118px 40px 1fr"><label for="i_${k}">${label}</label><input id="i_${k}" data-k="${k}" type="number" step="any" value="${v}"><span class="u">${unit}</span><small style="grid-column:auto;margin:0">${o.small||''}</small>
+      <div class="chips"><span>${o.chipsLabel}</span>${o.chips.map(c=>`<button type="button" class="chip" data-setk="${k}" data-v="${c}">${c}</button>`).join('')}</div></div>`;
+  }
+  return `<div class="f"><label for="i_${k}">${label}</label><input id="i_${k}" data-k="${k}" type="number" step="${o.step||'any'}" value="${v===''||v==null?'':v}"${o.req?' class="req" data-req="1" placeholder="직접 입력"':''}><span class="u">${unit}</span>${o.small?`<small>${o.small}</small>`:''}</div>`;
+}
+function condOptions(){
+  return allRoomConds(S).map(c=>`<option value="${esc(c.id)}"${c.id===S.condId?' selected':''}>${esc(c.name)} (${c.db}℃ / ${c.rh}%)</option>`).join('');
+}
+function condHTML(){
+  const P = DESIGN_CONDITIONS.pressure;
+  const lock = '<span class="pill" title="회사 표준 고정값">고정</span>';
+  const fix = DESIGN_CONDITIONS.outdoor.map(o=>resolveOutdoor(o,P)).map(o=>`<tr class="fx"><td>${o.name}</td>${cN(o.db,1)}${cN(o.rh,1)}${cN(o.ah,5)}${cN(o.h,2)}<td class="c">${lock}</td></tr>`).join('')
+   + DESIGN_CONDITIONS.rooms.map(c=>resolveRoom(c,P)).map(c=>`<tr class="fx"><td>${c.name}</td>${cN(c.room.db,1)}${cN(c.room.rh,1)}${cN(c.room.ah,5)}${cN(c.room.h,2)}<td class="c">${lock} <span id="rmk_${c.id}"></span></td></tr>
+      <tr class="fx dew"><td>${c.dewName}</td>${cN(c.dew.db,1)}${cN(c.dew.rh,1)}${cN(c.dew.ah,5)}${cN(c.dew.h,2)}<td></td></tr>`).join('');
+  const cust = (S.customConds||[]).map((c,i)=>`<tr><td><input data-cc="${i}" data-f="name" value="${esc(c.name)}" aria-label="조건명"></td>
+      <td><input data-cc="${i}" data-f="db" type="number" step="any" value="${c.db}" aria-label="건구온도"></td>
+      <td><input data-cc="${i}" data-f="rh" type="number" step="any" value="${c.rh}" aria-label="상대습도"></td>
+      <td><input data-cc="${i}" data-f="ah" type="number" step="0.00001" value="${c.ah??''}" placeholder="auto" aria-label="절대습도"></td>
+      <td class="n" id="cch_${i}"></td>
+      <td class="c"><span id="rmk_${esc(c.id)}"></span> <button class="row-x" data-delcc="${i}" title="조건 삭제" aria-label="조건 삭제">×</button></td></tr>
+    <tr class="dew"><td class="n" style="text-align:left" id="ccdn_${i}"></td>
+      <td><input data-cc="${i}" data-f="dewDB" type="number" step="any" value="${c.dewDB??''}" placeholder="auto" aria-label="노점 건구온도"></td>
+      <td><input data-cc="${i}" data-f="dewRH" type="number" step="any" value="${c.dewRH??95}" aria-label="노점 상대습도"></td>
+      <td class="n" id="ccda_${i}"></td><td class="n" id="ccdh_${i}"></td><td></td></tr>`).join('');
+  return `<div class="scroll"><table class="tbl-in cond"><thead><tr><th style="width:28%">SEASON</th><th>DRY BULB<br>(℃ DB)</th><th>RELA. HUMIDITY<br>(% RH)</th><th>ABS. HUMIDITY<br>(kg/kg')</th><th>ENTHALPY<br>(kcal/kg)</th><th style="width:120px">REMARKS</th></tr></thead>
+    <tbody>${fix}${cust}</tbody></table>
+    <p class="u" style="margin:6px 0 0;font-size:11.5px">Site atmospheric pressure: ${DESIGN_CONDITIONS.pressureLabel} · 추가 조건은 절대습도·노점온도를 비우면 DB/RH와 노점 RH(기본 95%)로 자동 계산됩니다.</p></div>
+    <button class="btn addrow" id="addCond">+ 설계조건 추가</button>`;
+}
+function cN(v,d){ return `<td class="n">${fmt(v,d)}</td>`; }
+function equipHTML(){
+  const dens = S.procMode==='density';
+  const seg = `<div class="seg" role="group" aria-label="공정부하 산정 방식">
+    <button type="button" data-pmode="density" aria-pressed="${dens}"><b>면적당 부하 기준</b><small>장비 용량을 모를 때 · 임의 kW로 부하밀도 확인</small></button>
+    <button type="button" data-pmode="power" aria-pressed="${!dens}"><b>장비 전력 입력</b><small>생산설비 전기용량을 알 때</small></button></div>`;
+  const info = `<div class="pinfo" id="procInfo"></div>`;
+  if(dens){
+    return `<div style="padding:12px 14px 0">${seg}</div>
+      <div class="grid"><div class="f"><label for="i_densityOut">실내 부하밀도 (결과)</label><input id="i_densityOut" type="text" readonly class="auto" style="text-align:right" tabindex="-1"><span class="u">kcal/h·m²</span><small id="h_densityOut"></small></div><div class="f"><label for="i_densityKw">POWER (임의 입력)</label><input id="i_densityKw" data-k="densityKw" data-req="1" type="number" step="any" value="${S.densityKw===''||S.densityKw==null?'':S.densityKw}" placeholder="kW 입력" style="font-weight:600"><span class="u">kW</span><small id="h_densityKw"></small></div>${fieldHTML(['densityRate','LOAD RATE (부하율)','%','number',{small:'기본 30% · A/C 부하 = kW × 860 × 부하율'}])}</div>
+      <div class="scroll" style="padding-top:0"><table class="tbl-in"><thead><tr><th>실명</th><th style="width:50px">Q'TY</th><th style="width:40px">Φ</th><th style="width:50px">V</th><th style="width:96px">POWER<br>kW</th><th style="width:110px">POWER LOAD<br>kcal/h</th><th style="width:70px">LOAD<br>RATE %</th><th style="width:110px">A/C LOAD<br>kcal/h</th></tr></thead>
+        <tbody><tr><td id="pdName" style="padding:4px 8px"></td><td class="n">1</td><td class="n">3</td><td class="n">380</td><td class="n" id="pdKw" style="font-weight:600"></td><td class="n" id="pdH"></td><td class="n" id="pdRate"></td><td class="n" id="pdN" style="font-weight:600"></td></tr></tbody></table></div>
+      <div style="padding:0 14px 12px">${info}</div>`;
+  }
+  const P=S.usePCW, X=S.useExhaust;
+  const rows = S.equip.map((e,i)=>`<tr>
+    <td><input data-eq="${i}" data-f="name" value="${esc(e.name)}" aria-label="장비명"></td>
+    <td><input data-eq="${i}" data-f="qty" type="number" value="${e.qty}" aria-label="수량"></td>
+    <td><input data-eq="${i}" data-f="kw" type="number" step="any" value="${e.kw}" aria-label="전력 kW"></td>
+    <td class="n" id="eqH${i}"></td>
+    ${P?`<td><input data-eq="${i}" data-f="pcwLpm" type="number" step="any" value="${e.pcwLpm}" aria-label="PCW LPM"></td>
+    <td><input data-eq="${i}" data-f="pcwDT" type="number" step="any" value="${e.pcwDT}" aria-label="PCW ΔT"></td>`:''}
+    ${X?`<td><input data-eq="${i}" data-f="exCmh" type="number" step="any" value="${e.exCmh}" aria-label="배기 CMH"></td>
+    <td><input data-eq="${i}" data-f="exDT" type="number" step="any" value="${e.exDT}" aria-label="배기 ΔT"></td>`:''}
+    <td><input data-eq="${i}" data-f="rate" type="number" step="any" value="${e.rate}" aria-label="부하율 %"></td>
+    <td class="n" id="eqN${i}"></td>
+    <td><button class="row-x" data-delrow="${i}" title="행 삭제" aria-label="행 삭제">×</button></td></tr>`).join('');
+  return `<div style="padding:12px 14px 0">${seg}
+    <div class="chk"><label><input type="checkbox" data-k="usePCW" ${P?'checked':''}> PCW 제거열 차감</label>
+    <label><input type="checkbox" data-k="useExhaust" ${X?'checked':''}> 공정배기 제거열 차감</label></div></div>
+    <div class="scroll"><table class="tbl-in"><thead><tr>
+    <th>장비명</th><th style="width:56px">수량</th><th style="width:86px">전력<br>kW</th><th style="width:100px">발열<br>kcal/h</th>
+    ${P?'<th style="width:80px">PCW<br>LPM</th><th style="width:56px">PCW<br>ΔT℃</th>':''}${X?'<th style="width:76px">배기<br>CMH</th><th style="width:56px">배기<br>ΔT℃</th>':''}
+    <th style="width:60px">부하율<br>%</th><th style="width:100px">A/C 부하<br>kcal/h</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
+    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:0 14px 12px"><button class="btn" id="addEq">+ 장비 추가</button>${info}</div>`;
+}
+function spHTML(){
+  const rows = S.spItems.map((s,i)=>`<tr>
+    <td><input data-sp="${i}" data-f="name" value="${esc(s.name)}" aria-label="항목"></td>
+    <td><input data-sp="${i}" data-f="unit" type="number" step="any" value="${s.unit}" ${s.link?'disabled class="auto"':''} aria-label="정압"></td>
+    <td><input data-sp="${i}" data-f="qty" type="number" step="any" value="${s.qty??''}" placeholder="-" ${s.link?'disabled class="auto"':''} aria-label="수량"></td>
+    <td class="n" id="spV${i}"></td>
+    <td><button class="row-x" data-delsp="${i}" aria-label="행 삭제">×</button></td></tr>`).join('');
+  return `<div class="scroll" style="padding-top:0"><div class="lbl" style="margin:4px 0 6px">정압 계산 (mmAq)</div>
+    <table class="tbl-in"><thead><tr><th>항목</th><th style="width:90px">정압 (단위)</th><th style="width:80px">수량/길이</th><th style="width:90px">소계 mmAq</th><th></th></tr></thead>
+    <tbody>${rows}</tbody><tfoot><tr><td style="text-align:right;padding:4px 6px;font-weight:600">합계 × 안전율</td><td></td><td></td><td class="n" id="spTot" style="font-weight:700"></td><td></td></tr></tfoot></table></div>
+    <button class="btn addrow" id="addSp">+ 정압 항목 추가</button>`;
+}
+function buildInputs(){
+  $('inputs').innerHTML = SECTIONS.map(s=>`<details class="card"${s.open?' open':''}><summary><span class="no">${s.no}</span>${s.title}<span class="hint">${s.hint}</span></summary>
+    ${s.cond?condHTML():''}${s.fields?`<div class="grid">${s.fields.map(fieldHTML).join('')}</div>`:''}${s.equip?equipHTML():''}</details>`).join('');
+}
+
+// ---------- events ----------
+function onInput(e){
+  const t = e.target;
+  if(t.dataset.k){
+    if(t.readOnly) return;
+    const k=t.dataset.k;
+    if(t.type==='checkbox'){ S[k]=t.checked; if(e.type==='change') rebuild(); return; }
+    let v = t.type==='number' ? (t.value===''? ((t.dataset.ah||t.dataset.req)?'':0) : parseFloat(t.value)) : t.value;
+    if(t.tagName==='SELECT' && ['roomTtol','illum'].includes(k)) v = parseFloat(v);
+    if(k==='condId') v = t.value;
+    S[k]=v;
+    if(e.type==='change'){
+      if(k==='coolType'){ S.coolKcal = v==='DX'?2150:3024; $('i_coolKcal').value=S.coolKcal; toast(`${v==='DX'?'공냉식 DX 1HP = 2,150':'수냉식 1RT = 3,024'} kcal/h 적용 (환산값은 직접 수정 가능)`); }
+      if(k==='cleanClass'){ const c=CLASS_TBL[v]; toast(`${c.label} 기준값 적용: 환기횟수 ${c.ach}회, 가압계수 ×${c.pa} (수정한 항목은 유지)`); }
+      if(k==='condId'){ const c=calculate(S).air.applied; toast(`${c.name} 적용: ${c.room.db}℃ / ${c.room.rh}%, 코일출구 ${fmt(c.dew.db,1)}℃`); }
+    }
+  } else if(t.dataset.cc!=null){
+    const r=S.customConds[+t.dataset.cc], f=t.dataset.f;
+    if(f==='name') r.name=t.value; else if(['ah','dewDB'].includes(f)) r[f]= t.value===''?'':parseFloat(t.value); else r[f]=parseFloat(t.value)||0;
+    if(e.type==='change'){ const sel=$('i_condId'); if(sel){ sel.innerHTML=condOptions(); } }
+  } else if(t.dataset.eq!=null){
+    const r=S.equip[+t.dataset.eq], f=t.dataset.f; r[f] = t.type==='number' ? (parseFloat(t.value)||0) : t.value;
+  } else if(t.dataset.sp!=null){
+    const r=S.spItems[+t.dataset.sp], f=t.dataset.f;
+    if(f==='name') r.name=t.value; else if(f==='qty') r.qty = t.value===''?null:parseFloat(t.value); else r.unit=parseFloat(t.value)||0;
+  } else return;
+  update();
+}
+document.addEventListener('input', onInput);
+document.addEventListener('change', onInput);
+document.addEventListener('click', e=>{
+  const t=e.target;
+  if(t.dataset.chtab){ S.chTab=t.dataset.chtab; document.querySelectorAll('[data-chtab]').forEach(b=>b.setAttribute('aria-selected', b.dataset.chtab===S.chTab)); document.querySelectorAll('.chpane').forEach(p=>p.hidden = p.dataset.pane!==S.chTab); save(); return; }
+  if(t.dataset.setk){ const k=t.dataset.setk; S[k]=parseFloat(t.dataset.v); $('i_'+k).value=S[k]; update(); return; }
+  if(t.dataset.autobtn){
+    const k=t.dataset.autobtn; S.manual=S.manual||{};
+    if(S.manual[k]){ delete S.manual[k]; update(); toast('기준값 자동 계산으로 되돌렸습니다.'); }
+    else { S.manual[k]=true; update(); const inp=$('i_'+k); inp.focus(); inp.select(); }
+    return;
+  }
+  if(t.id==='addCond'){ const n=(S.customConds||[]).length+1; let id='C'+Date.now().toString(36); S.customConds=(S.customConds||[]).concat([{id,name:'CLEAN ROOM '+(DESIGN_CONDITIONS.rooms.length+n),db:22,rh:50,ah:'',dewDB:'',dewRH:95}]); rebuild(); toast('설계조건을 추가했습니다. 1-1 실 사양의 "적용 설계조건"에서 선택할 수 있습니다.'); }
+  if(t.dataset.delcc!=null){ const c=S.customConds[+t.dataset.delcc]; S.customConds.splice(+t.dataset.delcc,1); if(S.condId===c.id) S.condId='CR2'; rebuild(); }
+  if(t.closest && t.closest('[data-pmode]')){ S.procMode=t.closest('[data-pmode]').dataset.pmode; rebuild(); return; }
+  if(t.id==='addEq'){ S.equip.push({name:'EQUIPMENT '+(S.equip.length+1),qty:1,phase:3,volt:380,kw:0,pcwLpm:0,pcwDT:5,exCmh:0,exDT:0,rate:30}); rebuild(); }
+  if(t.dataset.delrow!=null){ if(S.equip.length>1){ S.equip.splice(+t.dataset.delrow,1); rebuild(); } else toast('장비 행은 최소 1개 필요합니다. 발열이 없으면 kW를 0으로 두세요.'); }
+  if(t.id==='addSp'){ S.spItems.push({name:'추가 항목',unit:0}); rebuild(); }
+  if(t.dataset.delsp!=null){ S.spItems.splice(+t.dataset.delsp,1); rebuild(); }
+});
+function rebuild(){ const open=[...document.querySelectorAll('#inputs details')].map(d=>d.open); buildInputs(); document.querySelectorAll('#inputs details').forEach((d,i)=>d.open=open[i]); update(); }
+
+// ---------- results panel ----------
+let R;
+const MISSING = () => [['area','면적'],['building','층/동'],['eaGen','일반 배기']].filter(([k])=>S[k]===''||S[k]==null).map(([,l])=>l);
+function update(){
+  applyAuto();
+  R = calculate(S);
+  if(!S.manual.fanLoad) S.fanLoad = Math.round(R.load.fan*10)/10;
+  if(!S.manual.bfuQty) S.bfuQty = R.bfu.qty;
+  if(!S.manual.hfbQty) S.hfbQty = R.bfu.hfb;
+  { const e=$('i_densityKw'), h=$('h_densityKw'); if(e && R.procDensity){ const d=R.procDensity, std=isGR()?'일반룸 약 100':'클린룸 150~200';
+      const out = isGR() ? (R.load.density>130) : (R.load.density<150||R.load.density>200);
+      e.placeholder = `권장 ${fmt(d.kwAuto,1)}`;
+      h.className = ''; h.textContent = d.manual ? `권장 ${fmt(d.kwAuto,1)} kW (${fmt(S.targetDensity)} kcal/h·m² 기준) · 지우면 권장값 적용` : `비워두면 권장 ${fmt(d.kwAuto,1)} kW 적용 (${fmt(S.targetDensity)} kcal/h·m² 기준)`;
+      const o=$('i_densityOut'), oh=$('h_densityOut'); if(o){ o.value = fmt(R.load.density,1); o.style.color = out?'var(--warn)':'var(--ok)'; o.style.fontWeight='600';
+        oh.innerHTML = `<span class="pill${out?' w':''}">${out?'기준 벗어남':'기준 이내'}</span> 사내 기준 ${std} kcal/h·m²`; } } }
+  save();
+  R.ready = S.area>0;
+  for(const k in AUTO){ const inp=$('i_'+k), h=$('h_'+k), b=document.querySelector(`[data-autobtn="${k}"]`); if(!inp) continue;
+    const man=!!S.manual[k], av=AUTO[k].val();
+    inp.readOnly=!man; inp.classList.toggle('auto',!man); if(!man || document.activeElement!==inp) inp.value=S[k];
+    if(b){ b.textContent=man?'자동':'수정'; b.title=man?'기준값 자동 계산으로 되돌리기':'값을 직접 수정'; }
+    if(h){ h.className=man?'man':''; h.textContent = man ? `직접 입력 (기준값 ${fmt(av, Number.isInteger(av)?0:1)})` : `자동: ${AUTO[k].basis()}`; } }
+  document.querySelectorAll('.chip[data-setk]').forEach(b=>b.classList.toggle('on', +b.dataset.v===+S[b.dataset.setk]));
+  const ac=R.air.applied;
+  if($('condInfo')) $('condInfo').textContent = `실내 ${ac.room.db}℃ / ${ac.room.rh}% · ${fmt(ac.room.ah,5)} kg/kg' · 코일출구(노점) ${fmt(ac.dew.db,1)}℃ · ΔT ${fmt(ac.room.db-ac.dew.db,1)}℃`;
+  R.air.rooms.forEach(c=>{ const el=$('rmk_'+c.id); if(el) el.innerHTML = c.id===S.condId?'<span class="pill w">적용</span>':''; });
+  (S.customConds||[]).forEach((c,i)=>{ const rc=R.air.rooms.find(x=>x.id===c.id); if(!rc) return;
+    const set=(id,v)=>{ const el=$(id); if(el) el.textContent=v; };
+    set('cch_'+i, fmt(rc.room.h,2)); set('ccdn_'+i, rc.dewName); set('ccda_'+i, fmt(rc.dew.ah,5)); set('ccdh_'+i, fmt(rc.dew.h,2));
+    const ah=$('i_cc_ah_'+i); });
+  { const el=$('procInfo'), L=R.load, pt=R.procTot; if(el){
+    if(pt.mode==='density'){ const d=R.procDensity;
+      const out = isGR() ? (L.density>130) : (L.density<150||L.density>200), std=isGR()?'일반룸 약 100':'클린룸 150~200';
+      el.innerHTML = d.manual
+        ? `POWER ${fmt(d.kwEq,1)} kW × 860 = ${fmt(d.powerLoad)} kcal/h × ${fmt(d.rate)}% = <b>A/C ${fmt(d.need)} kcal/h</b> → 실내 부하밀도 <b>${fmt(L.density,1)}</b> kcal/h·m² <span class="pill${out?' w':''}">사내 기준 ${std}</span> · 권장 ${fmt(d.kwAuto,1)} kW`
+        : `A/C 부하(역산) = 목표 ${fmt(d.target)} × ${fmt(R.room.area)} m²${S.roomSF?` ÷ ${1+S.roomSF/100}`:''} − 건물·인체·조명·FAN ${fmt(d.others)} = <b>${fmt(d.need)} kcal/h</b> → POWER LOAD ${fmt(d.need)} ÷ ${fmt(d.rate)}% = ${fmt(d.powerLoad)} kcal/h → 환산 전력 <b>${fmt(d.kwEq,1)} kW</b> · 실내 부하밀도 <b>${fmt(L.density,1)}</b> kcal/h·m²`;
+      const set=(id,v)=>{const e=$(id); if(e) e.textContent=v;}; set('pdName',S.roomName); set('pdKw',fmt(d.kwEq,1)); set('pdH',fmt(d.powerLoad)); set('pdRate',fmt(d.rate)); set('pdN',fmt(d.need));
+    } else { const std=S.cleanClass==='GR'?'일반룸 약 100':'클린룸 150~200'; const out = S.cleanClass==='GR' ? (L.density>130) : (L.density<150||L.density>200);
+      el.innerHTML = `공정부하 합계 <b>${fmt(pt.N)} kcal/h</b> (전력 ${fmt(pt.kw,1)} kW) → 실내 부하밀도 <b>${fmt(L.density,1)}</b> kcal/h·m² <span class="pill${out?' w':''}">사내 기준 ${std}</span>`; } } }
+  R.proc.forEach((p,i)=>{ const h=$('eqH'+i), n=$('eqN'+i); if(h) h.textContent=fmt(p.H); if(n) n.textContent=fmt(p.N); });
+  R.ahu.spItems.forEach((s,i)=>{ const el=$('spV'+i); if(el) el.textContent=fmt(s.v,1); });
+  if($('spTot')) $('spTot').textContent = `${fmt(R.ahu.spSum,1)} × ${S.spSF} = ${fmt(R.ahu.sp,1)}`;
+  renderSide();
+  trDOM($('calc'));
+}
+const cu = () => S.coolType==='DX' ? 'HP' : 'RT';
+function capList(A, withExtra){
+  const cv = k => `${fmt(k/S.coolKcal,1)} ${cu()}`;
+  return `<div class="kpis">
+      <div class="kpi"><div class="k">급기량 S.A</div><div class="v">${fmt(A.sa)}<small>CMH</small></div></div>
+      <div class="kpi"><div class="k">외기량 O.A</div><div class="v">${fmt(A.oa)}<small>CMH</small></div></div>
+      <div class="kpi big"><div class="k">냉방 용량 (Pre + Re)</div><div class="v">${fmt(A.cool)}<small>kcal/h</small><small>(${cv(A.cool)})</small></div></div>
+      <div class="kpi"><div class="k">난방 용량 (${A.heatGov} 기준)</div><div class="v">${fmt(A.heatSel)}<small>kcal/h</small></div>
+        <div class="ref">${fmt(A.heatKw,1)} kW</div>
+        <div class="ref">동절기 ${fmt(A.heatCap)} · 하절기 ${fmt(A.reheat)}</div></div>
+      <div class="kpi"><div class="k">가습 용량</div><div class="v">${fmt(A.hum)}<small>kg/h</small></div></div>
+    </div>
+    <div class="list">
+      <div><span>Pre Cooling</span><b>${fmt(A.pre)} kcal/h<small>${cv(A.pre)}</small></b></div>
+      <div><span>Re Cooling</span><b>${fmt(A.re)} kcal/h<small>${cv(A.re)}</small></b></div>
+      ${withExtra?`${S.coolType==='CW'?`<div><span>냉수량 Pre / Re (ΔT ${S.cwDT}℃)</span><b>${fmt(A.preLpm)} / ${fmt(A.reLpm)} LPM</b></div>`:''}
+      <div><span>외기 비율</span><b>${fmt(A.oa/A.sa*100,1)} %</b></div>`:''}
+    </div>`;
+}
+function renderSide(){
+  const L=R.load, A=R.ahu, B=R.ahuAll, T=R.tot, a2=R.air2;
+  if(!$('sideRoom')){
+    $('side').innerHTML = `<div class="card" id="sideRoom"></div>
+      <div class="card"><h2>공조기 용량 — 전체 <span class="pill">실 전체 기준</span></h2><div id="sideAll"></div></div>
+      <div class="card"><h2>공조기 용량 — 대당</h2>
+        <div class="ahuin"><div><label for="i_ahuTag">공조기 No.</label><input id="i_ahuTag" data-k="ahuTag" value="${esc(S.ahuTag)}"></div><div><label for="i_ahuQty">공조기 대수 (대)</label><input id="i_ahuQty" data-k="ahuQty" type="number" min="1" step="1" value="${S.ahuQty}"></div></div>
+        <div id="sidePer"></div></div>
+      <div class="card"><h2>칠러 선정 (참고)</h2>
+        <div class="chtabs" role="tablist">${Object.entries(CH_TYPES).map(([k,v])=>`<button type="button" role="tab" data-chtab="${k}" aria-selected="${S.chTab===k}">${v.name} 선정</button>`).join('')}</div>
+        ${Object.entries(CH_TYPES).map(([k,v])=>`<div class="chpane" data-pane="${k}" ${S.chTab===k?'':'hidden'}>
+          <div class="ahuin"><div><label for="i_${v.rtK}">대당 용량 (RT)</label><input id="i_${v.rtK}" data-k="${v.rtK}" type="number" step="any" value="${S[v.rtK]}"></div>
+          <div><label for="i_${v.qK}">수량 (대)</label><input id="i_${v.qK}" data-k="${v.qK}" data-req="1" type="number" min="1" step="1" value="${S[v.qK]}" placeholder="자동"></div>
+          <div class="chips" style="grid-column:1/-1"><span>${v.listLabel}</span>${v.list.map(c=>`<button type="button" class="chip" data-setk="${v.rtK}" data-v="${c}">${c}</button>`).join('')}</div></div>
+          <div id="sideCh_${k}"></div></div>`).join('')}</div>
+      <div class="card"><h2>검토 사항</h2><div class="warns" id="sideWarn"></div></div>`;
+  }
+  const miss = MISSING();
+  if(!R.ready){
+    $('sideRoom').innerHTML = `<h2>실 부하 요약</h2><div class="empty"><b>${miss.join(', ')}</b>을(를) 입력하면 계산 결과가 표시됩니다.</div>`;
+    ['sideAll','sidePer','sideCh_air','sideCh_water'].forEach(id=>$(id).innerHTML='<div class="empty">—</div>');
+    $('sideWarn').innerHTML = `<p>필수 입력: ${miss.join(', ')}</p>`; $('psyBody').innerHTML='<div class="empty">필수 입력값을 넣으면 습공기 선도가 표시됩니다.</div>'; return;
+  }
+  $('sideRoom').innerHTML = `<h2>실 부하 요약 <span class="pill">${esc(S.roomName)}</span></h2>
+    <div class="kpis">
+      <div class="kpi"><div class="k">실내 냉방부하</div><div class="v">${fmt(L.total)}<small>kcal/h</small></div></div>
+      <div class="kpi"><div class="k">부하 밀도</div><div class="v">${fmt(L.density,1)}<small>kcal/h·m²</small></div></div>
+      <div class="kpi"><div class="k">급기량 S.A (Final)</div><div class="v">${fmt(a2.saFinal)}<small>CMH</small></div></div>
+      <div class="kpi"><div class="k">외기량 O.A</div><div class="v">${fmt(R.oa.oa)}<small>CMH</small></div></div>
+    </div>
+    <div class="list">
+      <div><span>건물 / 인체 / 조명</span><b>${fmt(L.bldg)} / ${fmt(L.person)} / ${fmt(L.light)}</b></div>
+      <div><span>공정부하 산정</span><span class="pill">${R.procTot.mode==='density'?`면적당 ${fmt(S.targetDensity)} kcal/h·m² 기준`:'장비 전력 입력'}</span></div>
+      <div><span>공정장비 / FAN</span><b>${fmt(L.proc)} / ${fmt(L.fan)}</b></div>
+      <div><span>난방부하</span><b>${fmt(L.heat)} kcal/h</b></div>
+      <div><span>순환풍량 C.A (실용적 × ${S.ach}회)</span><b>${fmt(a2.ca)} CMH</b></div>
+      <div><span>S.A 결정 근거</span><span class="pill">${a2.gov}</span></div>
+      <div><span>부하 S.A (ΔT)</span><b>${fmt(a2.saLoad)} CMH</b></div>
+      <div><span>외기량 O.A</span><b>${fmt(R.oa.oa)} CMH</b></div>
+      <div><span>C.A × ${fmt(S.caRatio)}% (C.A ${fmt(a2.ca)})</span><b>${fmt(a2.saCa)} CMH</b></div>
+      <div><span>온도편차 풍량</span><b>${fmt(a2.saTemp)} CMH</b></div>
+      <div><span>최종 S.A = MAX</span><b>${fmt(a2.saFinal)} CMH</b></div>
+      <div><span>O.A 결정 근거</span><span class="pill">${R.oa.governing}</span></div>
+      <div><span>BFU 선정 (${S.bfuCMM} CMM)</span><b>${fmt(R.bfu.qty)} 대<small>${R.bfu.manual?`직접 입력 · 자동 ${fmt(R.bfu.auto)}`:'자동'}</small></b></div>
+      <div><span>BFU FAN 발열</span><b>${fmt(R.load.fan,1)} kcal/h<small>${fmt(R.bfu.qty*S.bfuW/1000,1)} kW</small></b></div>
+      <div><span>HFB 수량 (${S.hfbCMM} CMM)</span><b>${fmt(R.bfu.hfbSel)} 대<small>${R.bfu.hfbManual?`직접 입력 · 자동 ${fmt(R.bfu.hfb)}`:'자동'}</small></b></div>
+      <div><span>S.A 환기횟수 환산</span><b>${fmt(a2.achActual,1)} 회/h</b></div>
+    </div>`;
+  $('sideAll').innerHTML = capList(B,false);
+  $('psyBody').innerHTML = psychroSVG() + `<div class="scroll" style="padding:8px 0 0">${psychroTable('tbl-in psyt')}</div>`;
+  const cv = k => `${fmt(k/S.coolKcal,1)} ${cu()}`;
+  $('sidePer').innerHTML = (T.n>1?`<div class="list" style="padding-bottom:0"><div class="sec"><span>${esc(S.ahuTag)} — 1대 기준 (전체 ÷ ${T.n}대)</span></div></div>`:'') + capList(A,true)
+    + `<div class="list"><div class="sec"><span>합계 (대당 × ${T.n}대)</span></div>
+      <div><span>총 급기량</span><b>${fmt(T.sa)} CMH</b></div>
+      <div><span>총 냉방 용량</span><b>${fmt(T.cool)} kcal/h<small>${cv(T.cool)}</small></b></div>
+      <div><span>총 난방 용량 (MAX)</span><b>${fmt(T.heat)} kcal/h<small>동절기 ${fmt(T.heatW)} · 하절기 ${fmt(T.heatS)}</small></b></div>
+      <div><span>총 가습</span><b>${fmt(T.hum)} kg/h</b></div></div>`;
+  for(const [k,v] of Object.entries(CH_TYPES)){ const c=T[v.tKey], ok=c.total>=T.chReq, st=c.rt>0?`<span class="pill${ok?'':' w'}">${ok?'충족':'부족'}</span>`:'';
+    $('sideCh_'+k).innerHTML = c.rt>0 ? `<div class="kpis">
+      <div class="kpi"><div class="k">대당</div><div class="v">${fmt(c.rt)}<small>RT</small></div></div>
+      <div class="kpi"><div class="k">전체 (${c.qty}대${c.manual?'':' · 자동'})</div><div class="v">${fmt(c.total)}<small>RT</small></div></div></div>
+    <div class="list">
+      <div><span>필요 용량 (총 냉방 ${fmt(T.cool)} ÷ ${fmt(S.coolKcal)})</span><b>${fmt(T.chReq,1)} RT</b></div>
+      <div><span>자동 산정 수량</span><b>${c.auto} 대</b></div>
+      <div><span>최종 선정 수량</span><b>${c.qty} 대<small>${c.manual?'직접 입력':'자동'}</small></b></div>
+      <div><span>실제 냉각용량 (${fmt(c.rt)} RT × ${c.qty}대)</span><b>${fmt(c.total)} RT<small>${fmt(c.total*S.coolKcal)} kcal/h</small></b></div>
+      <div><span>대당 필요 용량 (${fmt(T.chReq,1)} ÷ ${c.qty}대)</span><b>${fmt(c.perReq,1)} RT<small>대당 ${fmt(c.rt)} RT</small></b></div>
+      <div><span>여유율 (최종 선정 기준) ${st}</span><b>${fmt((c.margin-1)*100,1)} %</b></div></div>`
+    : `<div class="list"><div><span>필요 용량 (총 냉방 ÷ ${fmt(S.coolKcal)})</span><b>${fmt(T.chReq,1)} RT</b></div>
+      <div><span>대당 용량을 입력하거나 위 목록에서 고르면 수량과 여유율이 계산됩니다.</span></div></div>`;
+    const qi2=$('i_'+v.qK); if(document.activeElement!==qi2) qi2.value=S[v.qK]; qi2.placeholder = c.auto?`자동 ${c.auto}`:'자동';
+    const ci=$('i_'+v.rtK); if(document.activeElement!==ci) ci.value=S[v.rtK];
+    if(c.rt>0 && !ok) R.warn.push(`${v.name} 용량 부족: ${fmt(c.total)} RT < 필요 ${fmt(T.chReq,1)} RT`);
+  }
+  if(miss.length) R.warn.unshift('필수 입력 누락: '+miss.join(', '));
+  $('sideWarn').innerHTML = R.warn.length ? R.warn.map(w=>`<p>${esc(w)}</p>`).join('') : `<p class="okm">입력 검토 사항 없음</p>`;
+  const qi=$('i_ahuQty'); if(document.activeElement!==qi) qi.value=S.ahuQty;
+  { const ti=$('i_ahuTag'); if(document.activeElement!==ti) ti.value=S.ahuTag; }
+  qi.onblur=()=>{ if(!(S.ahuQty>=1)){ S.ahuQty=1; qi.value=1; update(); } };
+}
+
+// ---------- psychrometric chart ----------
+function psyPoints(){
+  const a=R.air, A=R.ahu, P=DESIGN_CONDITIONS.pressure;
+  const tm=(A.ra*a.RM.db + A.oa*a.S.db)/A.sa, wm=(A.ra*a.RM.ah + A.oa*a.S.ah)/A.sa;
+  const pts=[
+    {id:'S1',name:'외기 (하절기)',en:'O.A SUMMER',t:a.S.db,w:a.S.ah,c:'#b3261e'},
+    {id:'S2',name:'혼합 (하절기)',en:'MIXED AIR (E.E)',t:tm,w:wm,c:'#b3261e'},
+    {id:'S3',name:'코일 출구 (노점)',en:'COIL LEAVING',t:a.DP.db,w:a.DP.ah,c:'#b3261e'},
+    {id:'S4',name:'급기 (재열 후)',en:'SUPPLY AIR (RE-HEAT)',t:A.tsup,w:a.DP.ah,c:'#b3261e'},
+    {id:'R', name:'실내',en:'ROOM',t:a.RM.db,w:a.RM.ah,c:'#16202b'},
+    {id:'W1',name:'외기 (동절기)',en:'O.A WINTER',t:a.W.db,w:a.W.ah,c:'#1d5fa8'},
+    {id:'W2',name:'혼합 (동절기)',en:'MIXED AIR (E.T)',t:A.et,w:A.eh,c:'#1d5fa8'},
+    {id:'W3',name:'가열 후',en:'AFTER HEATING',t:A.lt,w:A.eh,c:'#1d5fa8'},
+    {id:'W4',name:'가습 후 (급기)',en:'AFTER HUMIDIFICATION',t:A.lt,w:a.RM.ah,c:'#1d5fa8'},
+  ];
+  pts.forEach(p=>{ p.rh=Math.min(100,rhFrom(p.t,p.w,P)); p.h=enth(p.t,p.w); });
+  return pts;
+}
+let PSY_N=0;
+function psychroSVG(){
+  const uid='p'+(++PSY_N);
+  const P=DESIGN_CONDITIONS.pressure, pts=psyPoints(), by=Object.fromEntries(pts.map(p=>[p.id,p]));
+  const W=760,H=480,ml=46,mr=58,mt=28,mb=40, t0=0,t1=45, w0=0,w1=0.030;
+  const X=t=>ml+(t-t0)/(t1-t0)*(W-ml-mr), Y=w=>H-mb-(w-w0)/(w1-w0)*(H-mt-mb);
+  const wsat=t=>absHum(t,100,P);
+  const poly=(f,step=0.5,ta=t0,tb=t1)=>{ let d='',on=false; for(let t=ta;t<=tb+1e-9;t+=step){ const w=f(t); if(w==null||w>w1||w<w0){on=false;continue;} d+=(on?'L':'M')+X(t).toFixed(1)+','+Y(w).toFixed(1); on=true; } return d; };
+  let g='';
+  // grid
+  for(let t=t0;t<=t1;t+=5) g+=`<line x1="${X(t)}" y1="${Y(w0)}" x2="${X(t)}" y2="${Math.max(Y(Math.min(wsat(t),w1)),mt)}" stroke="#e3e8ee"/><text x="${X(t)}" y="${H-mb+14}" text-anchor="middle" class="ax">${t}</text>`;
+  for(let w=0;w<=w1+1e-9;w+=0.005) g+=`<line x1="${X(t0)}" y1="${Y(w)}" x2="${X(t1)}" y2="${Y(w)}" stroke="#e3e8ee"/><text x="${W-mr+6}" y="${Y(w)+3}" class="ax">${w.toFixed(3)}</text>`;
+  // enthalpy lines
+  for(let h=5;h<=30;h+=5){ const f=t=>{ const w=(h*4.186-1.005*t)/(2500+1.84*t); return (w>=0&&w<=wsat(t))?w:null; }; const d=poly(f,0.25); if(d){ g+=`<path d="${d}" fill="none" stroke="#c9d6e3" stroke-dasharray="2 3"/>`;
+    let tl=t0; for(let t=t0;t<=t1;t+=0.1){ const w=f(t); if(w!=null){ tl=t; break; } } const wl=f(tl); if(wl!=null && wl<w1) g+=`<text x="${X(tl)-4}" y="${Y(wl)-3}" text-anchor="end" class="hl">${h}</text>`; } }
+  // RH lines
+  for(let rh=10;rh<100;rh+=10){ g+=`<path d="${poly(t=>absHum(t,rh,P))}" fill="none" stroke="#b9c4cf" stroke-width="0.8"/>`;
+    let tl=t1; while(tl>t0 && absHum(tl,rh,P)>w1) tl-=0.5; g+=`<text x="${X(tl)-2}" y="${Y(absHum(tl,rh,P))-3}" text-anchor="end" class="rl">${rh}%</text>`; }
+  g+=`<path d="${poly(wsat,0.25)}" fill="none" stroke="#16202b" stroke-width="1.6"/>`;
+  // processes
+  const ln=(a,b,c,dash,arrow)=>`<line x1="${X(a.t)}" y1="${Y(a.w)}" x2="${X(b.t)}" y2="${Y(b.w)}" stroke="${c}" stroke-width="${dash?1.2:2}" ${dash?`stroke-dasharray="${dash}"`:''} ${arrow?`marker-end="url(#${uid}_${c.slice(1)})"`:''}/>`;
+  const r='#b3261e', bl='#1d5fa8';
+  g+=ln(by.S1,by.S2,r,'5 3')+ln(by.R,by.S2,r,'5 3')+ln(by.S2,by.S3,r,0,1)+(by.S4.t>by.S3.t+0.05?ln(by.S3,by.S4,r,0,1):'')+ln(by.S4,by.R,r,'1.5 3',1);
+  g+=ln(by.W1,by.W2,bl,'5 3')+ln(by.R,by.W2,bl,'5 3')+ln(by.W2,by.W3,bl,0,1)+ln(by.W3,by.W4,bl,0,1)+ln(by.W4,by.R,bl,'1.5 3',1);
+  // points
+  const off={S1:[8,-6,'start'],S2:[-8,12,'end'],S3:[-8,-7,'end'],S4:[0,-9,'middle'],R:[0,-10,'middle'],W1:[-8,4,'end'],W2:[6,-8,'start'],W3:[8,4,'start'],W4:[8,-4,'start']};
+  pts.forEach(p=>{ const [dx,dy,anc]=off[p.id]||[8,-6,'start'];
+    g+=`<circle cx="${X(p.t)}" cy="${Y(p.w)}" r="${p.id==='R'?5:3.6}" fill="${p.id==='R'?'#fff':p.c}" stroke="${p.c}" stroke-width="1.6"/><text x="${X(p.t)+dx}" y="${Y(p.w)+dy}" text-anchor="${anc}" class="pl" fill="${p.c}" paint-order="stroke" stroke="#fff" stroke-width="3">${p.id}</text>`; });
+  const mk=c=>`<marker id="${uid}_${c.slice(1)}" viewBox="0 0 10 10" refX="10" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`;
+  return `<svg viewBox="0 0 ${W} ${H}" class="psy" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="습공기 선도">
+    <defs>${mk(r)}${mk(bl)}${mk('#16202b')}</defs>
+    <style>.psy .ax{font:10px 'IBM Plex Mono',monospace;fill:#5b6876}.psy .rl{font:9px 'IBM Plex Mono',monospace;fill:#8a96a3}.psy .hl{font:9px 'IBM Plex Mono',monospace;fill:#8aa3bd}.psy .pl{font:700 11px 'IBM Plex Sans KR',sans-serif}.psy .tt{font:10.5px 'IBM Plex Sans KR',sans-serif;fill:#5b6876}</style>
+    <rect x="${ml}" y="${mt}" width="${W-ml-mr}" height="${H-mt-mb}" fill="#fff" stroke="#9aa6b2"/>
+    ${g}
+    <text x="${(ml+W-mr)/2}" y="${H-6}" text-anchor="middle" class="tt">건구온도 DB (℃)</text>
+    <text x="${W-4}" y="${mt-10}" text-anchor="end" class="tt">절대습도 (kg/kg')</text>
+    <text x="${ml+6}" y="${mt+14}" class="tt">점선(청회색): 엔탈피 kcal/kg · 곡선: 상대습도 %</text>
+    <g transform="translate(${ml+8},${mt+24})"><line x1="0" y1="0" x2="18" y2="0" stroke="${r}" stroke-width="2"/><text x="24" y="3" class="tt">하절기 (냉각·제습 → 재열)</text>
+      <line x1="0" y1="14" x2="18" y2="14" stroke="${bl}" stroke-width="2"/><text x="24" y="17" class="tt">동절기 (가열 → 가습)</text></g>
+  </svg>`;
+}
+function psychroTable(cls){
+  const pts=psyPoints();
+  return `<table class="${cls}"><thead><tr><th>No.</th><th>상태점</th><th>DB (℃)</th><th>RH (%)</th><th>AH (kg/kg')</th><th>h (kcal/kg)</th></tr></thead><tbody>
+    ${pts.map(p=>`<tr><td class="c" style="color:${p.c};font-weight:700">${p.id}</td><td>${p.name} <span style="color:#8a96a3;font-size:.9em">${p.en}</span></td><td class="n">${fmt(p.t,1)}</td><td class="n">${fmt(p.rh,1)}</td><td class="n">${fmt(p.w,5)}</td><td class="n">${fmt(p.h,2)}</td></tr>`).join('')}</tbody></table>`;
+}
+
+// ---------- report ----------
+function page(title, body, no, total){
+  return `<div class="page"><div class="pg-head"><span>${LOGO_HTML}${esc(S.project)}</span><span>HVAC HEAT LOAD CALCULATION${S.rev?` · ${esc(S.rev)}`:''}</span></div>
+  ${title?`<h2>${title}</h2>`:''}${body}
+  <div class="pg-foot"><span></span><span>${no} / ${total}</span></div></div>`;
+}
+function td(v,d=0,cls='n'){ return `<td class="${cls}">${typeof v==='number'?fmt(v,d):esc(v)}</td>`; }
+function capTable(B, A, T){
+  const cv = k => `${fmt(k/S.coolKcal,1)} ${cu()}`;
+  const row=(lbl,b,a,t,u,conv)=>`<tr><td>${lbl}</td><td class="n">${fmt(b)}${conv?` <span class="note">(${cv(b)})</span>`:''}</td><td class="n">${fmt(a)}${conv?` <span class="note">(${cv(a)})</span>`:''}</td><td class="n">${fmt(t)}${conv?` <span class="note">(${cv(t)})</span>`:''}</td><td class="c">${u}</td></tr>`;
+  return `<table class="rt"><tr><th>ITEM</th><th>전체 (실 전체 기준)</th><th>대당 (1대)</th><th>합계 (대당 × ${T.n})</th><th>UNIT</th></tr>
+   ${row('SUPPLY AIR',B.sa,A.sa,T.sa,'CMH')}${row('OUTSIDE AIR',B.oa,A.oa,T.oa,'CMH')}
+   ${row('PRE COOLING',B.pre,A.pre,T.pre,'kcal/h',1)}${row('RE COOLING',B.re,A.re,T.re,'kcal/h',1)}
+   <tr class="tot"><td>COOLING TOTAL</td><td class="n hl">${fmt(B.cool)} (${cv(B.cool)})</td><td class="n hl">${fmt(A.cool)} (${cv(A.cool)})</td><td class="n hl">${fmt(T.cool)} (${cv(T.cool)})</td><td class="c">kcal/h</td></tr>
+   ${row('HEATING — 동절기 난방',B.heatCap,A.heatCap,T.heatW,'kcal/h')}${row('HEATING — 하절기 난방',B.reheat,A.reheat,T.heatS,'kcal/h')}
+   ${row('HUMIDIFICATION',B.hum,A.hum,T.hum,'kg/h')}</table>`;
+}
+function buildReport(){
+  const L=R.load, A=R.ahu, T=R.tot, a=R.air, a2=R.air2, rm=R.room, oa=R.oa, n=S.ahuQty;
+  const cls = CLASS_TBL[S.cleanClass]||{label:S.cleanClass};
+  const pages = [];
+  // cover
+  const toc = [
+    ['1. CLEAN ROOM SPECIFICATION',0,2],['1-1. ROOM CONDITION',1,2],
+    ['2. H.V.A.C LOAD CALCULATION',0,2],['2-1. OUT AIR CONDITION (GIVEN DATA)',1,2],['2-2. MAKE-UP AIR (O.A) CALCULATION',1,2],['2-3. PROCESS EQUIPMENT COOLING LOAD',1,3],
+    ['2-4. ROOM LOAD CALCULATION',1,3],['2-5. AIR VOLUME (C.A / S.A / BFU / HFB)',1,3],['2-6. AHU SUMMARY',1,3],
+    ['3. AHU CALCULATION & EQUIPMENT SCHEDULE',0,4],['3-1. PRE-COOLING COIL',1,4],['3-2. RE-COOLING COIL',1,4],['3-3. HEATING COIL',1,4],['3-4. HUMIDIFICATION',1,4],
+    ['3-5. PSYCHROMETRIC CHART (습공기 선도)',1,5],['3-6. AHU CAPACITY — 전체 / 대당',1,6],['3-7. EQUIPMENT SELECTION',1,7],['3-8. H.V.A.C EQUIPMENT SCHEDULE',1,7],
+  ];
+  pages.push(`<div class="page cover"><div class="pg-head"><span>${LOGO_HTML}${esc(S.project)}</span><span>${esc(S.rev)}</span></div>
+    <div class="ttl"><div class="b">HVAC HEAT LOAD CALCULATION</div><div class="c">&lt; HVAC DESIGN FOR BASIC &gt;</div></div>
+    <div class="meta"><table class="rt">
+      <tr><th style="width:32%">CLIENT</th><td>${esc(S.client)}</td></tr>
+      <tr><th>PROJECT</th><td>${esc(S.project)}</td></tr>
+      <tr><th>LOCATION</th><td>${esc(S.location)}</td></tr>
+      <tr><th>DATE / REV.</th><td>${esc(S.docDate)} / ${esc(S.rev)}</td></tr></table></div>
+    <div class="toc"><h3>CONTENTS</h3>${toc.map(([t,l,pg])=>`<div class="${l?'l2':'l1'}"><span>${esc(t)}</span><i></i><b>${pg}</b></div>`).join('')}</div>
+    <div class="sign"><div><span>작성</span><i>${esc(S.preparedBy)}</i></div><div><span>검토</span><i>${esc(S.checkedBy)}</i></div><div><span>승인</span><i>${esc(S.approvedBy)}</i></div></div>
+    <div class="pg-foot"><span></span><span>1 / #T</span></div></div>`);
+
+  // p2: 1-1 room spec + 2-1 given
+  const p2 = `
+  <h2>1. CLEAN ROOM SPECIFICATION</h2>
+  <h3>1-1. ROOM CONDITION</h3>
+  <table class="rt"><tr><th>BUILD</th><th>ROOM NAME</th><th>AREA<br>(m²)</th><th>C.H<br>(m)</th><th>VOLUME<br>(m³)</th><th>CLEANLINESS<br>(@0.5㎛)</th><th>TEMP<br>(℃DB)</th><th>HUMID<br>(%RH)</th><th>ILLUM<br>(LUX)</th><th>PERSON<br>(人)</th></tr>
+   <tr>${td(S.building,0,'c')}${td(S.roomName,0,'c')}${td(rm.area)}${td(rm.ch,1)}${td(rm.vol)}${td(cls.label,0,'c')}${td(`${a.RM.db}±${S.roomTtol}`,0,'c')}${td(`${a.RM.rh}±${S.roomRHtol}`,0,'c')}${td(S.illum)}${td(rm.persons)}</tr></table>
+  <table class="rt"><tr><th>EXHAUST GEN<br>(CMH)</th><th>EXHAUST PROCESS<br>(CMH)</th><th>EXHAUST TOTAL<br>(CMH)</th><th>FRESH AIR<br>(CMH)</th><th>PROCESS POWER<br>(kW)</th><th>HEAT LOAD<br>(kcal/h·m²)</th><th>HVAC SYSTEM</th></tr>
+   <tr>${td(S.eaGen)}${td(S.eaProc)}${td(rm.eaTotal)}${td(oa.fa)}${td(R.procTot.mode==='density'?`${fmt(R.procTot.kw,1)} *`:fmt(R.procTot.kw,1))}${td(L.density,1)}${td(S.ahuTag,0,'c')}</tr></table>
+  <h2 style="margin-top:14px">2. H.V.A.C LOAD CALCULATION</h2>
+  <h3>2-1. OUT AIR CONDITION (GIVEN DATA)</h3>
+  <table class="rt"><tr><th>SEASON</th><th>DRY BULB<br>(℃DB)</th><th>RELA. HUMIDITY<br>(%RH)</th><th>ABS. HUMIDITY<br>(kg/kg')</th><th>ENTHALPY<br>(kcal/kg)</th><th>REMARKS</th></tr>
+   ${a.outdoor.map(o=>`<tr>${td(o.name,0,'c')}${td(o.db,1)}${td(o.rh,1)}${td(o.ah,5)}${td(o.h,2)}${td('',0,'c')}</tr>`).join('')}
+   ${a.rooms.map(c=>{ const on=c.id===a.applied.id; const k=on?'n hl':'n';
+     return `<tr>${td(c.name,0,'c')}<td class="${k}">${fmt(c.room.db,1)}</td><td class="${k}">${fmt(c.room.rh,1)}</td><td class="${k}">${fmt(c.room.ah,5)}</td><td class="${k}">${fmt(c.room.h,2)}</td>${td(on?'적용 (APPLIED)':'',0,'c')}</tr>
+     <tr>${td(c.dewName,0,'c')}<td class="${k}">${fmt(c.dew.db,1)}</td><td class="${k}">${fmt(c.dew.rh,1)}</td><td class="${k}">${fmt(c.dew.ah,5)}</td><td class="${k}">${fmt(c.dew.h,2)}</td>${td(on?'Coil leaving':'',0,'c')}</tr>`; }).join('')}</table>
+  <p class="note">Site atmospheric pressure: ${DESIGN_CONDITIONS.pressureLabel}. Room dew point ${fmt(a.RM.dew,1)}℃. Enthalpy h = (1.005·t + x·(2500 + 1.84·t)) / 4.186 [kcal/kg]</p>
+  <h3>2-2. MAKE-UP AIR (O.A) CALCULATION</h3>
+  <table class="rt"><tr><th>ROOM NAME</th><th>EXHAUST AIR<br>(CMH)</th><th>PRESSURE AIR<br>(CMH)</th><th>FRESH AIR<br>(CMH)</th><th>VOLUME MAX(EA+PA, FA)<br>(CMH)</th><th>REMARKS</th></tr>
+   <tr>${td(S.roomName,0,'c')}${td(oa.ea)}${td(oa.pa)}${td(oa.fa)}<td class="n hl">${fmt(oa.oa)}</td>${td(oa.governing,0,'c')}</tr></table>
+  <div class="eq">P.A = Room volume ${fmt(rm.vol)} m³ × ${S.paFactor} = ${fmt(oa.pa)} CMH (ROUNDUP 100)
+F.A = ${fmt(rm.persons)} 人 × ${S.faPerPerson} CMH/人 = ${fmt(oa.fa)} CMH</div>
+  <p class="note">* STANDARD — N5(Class 100) PA = room volume × 2.0 / N6(1K) × 1.0~2.0 / N7(10K) × 1.0~2.0 / N8(100K) × 1.0 · F.A : 40 CMH/人 (CR), 25 CMH/人 (GR) · E.A : Owner utility list</p>`;
+  pages.push(p2);
+
+  // p3: 2-1B process + 2-2 room load
+  const pt=R.procTot;
+  let procBlock;
+  if(pt.mode==='density'){ const d=R.procDensity;
+    procBlock = `<h3>2-3. PROCESS EQUIPMENT COOLING LOAD</h3>
+    <table class="rt"><tr><th>ROOM NAME</th><th>Q'TY</th><th>Φ</th><th>V</th><th>POWER<br>(kW)</th><th>POWER LOAD<br>(kcal/h)</th><th>LOAD RATE<br>(%)</th><th>A/C LOAD<br>(kcal/h)</th></tr>
+     <tr>${td(S.roomName,0,'')}${td(1)}${td(3)}${td(380)}${td(d.kwEq,1)}${td(d.powerLoad)}${td(d.rate)}<td class="n hl">${fmt(d.need)}</td></tr>
+     <tr class="tot"><td>TOTAL</td><td></td><td></td><td></td>${td(d.kwEq,1)}${td(d.powerLoad)}<td></td>${td(d.need)}</tr></table>
+    <table class="rt"><tr><th>ITEM</th><th>BASIS</th><th>(kcal/h)</th></tr>
+     <tr>${td('TARGET ROOM LOAD',0,'')}${td(`${fmt(d.target)} kcal/(h·m²) × ${fmt(rm.area)} m²`,0,'')}${td(d.targetLoad)}</tr>
+     <tr>${td('BUILDING + PERSON + LIGHTING + FAN',0,'')}${td('2-4 참조',0,'')}${td(d.others)}</tr>
+     <tr class="tot"><td>PROCESS A/C LOAD</td><td>${d.manual?`ASSUMED POWER ${fmt(d.kwEq,1)} kW × 860 × LOAD RATE ${fmt(d.rate)}%`:`TARGET${S.roomSF?` ÷ ${1+S.roomSF/100} (S.F)`:''} − (BUILDING + PERSON + LIGHTING + FAN)`}</td><td class="n">${fmt(d.need)}</td></tr>
+     <tr>${td(d.manual?'PROCESS POWER (assumed)':'PROCESS POWER (back-calc.)',0,'')}${td(d.manual?`${fmt(d.kwEq,1)} kW × 860 × ${fmt(d.rate)}% = ${fmt(d.need)} kcal/h → ${fmt(R.load.density,1)} kcal/(h·m²)`:`${fmt(d.need)} ÷ ${fmt(d.rate)}% ÷ 860`,0,'')}${td(`${fmt(d.kwEq,1)} kW`)}</tr></table>
+    <p class="note">* PROCESS POWER (kW) not provided — per our standard design practice, a load per square meter of 150~200 kcal/(h·m²) is applied for clean rooms (general room abt. 100 kcal/(h·m²)). Equivalent power is back-calculated at the load rate above.</p>`;
+  } else {
+    const P=pt.usePCW, X=pt.useEx;
+    const eqRows = R.proc.map(p=>`<tr>${td(p.name,0,'')}${td(p.qty)}${td(p.kw,1)}${td(p.H)}${P?td(p.pcwLpm)+td(p.K):''}${X?td(p.exCmh)+td(p.M):''}${td(p.rate,0)}<td class="n hl">${fmt(p.N)}</td></tr>`).join('');
+    procBlock = `<h3>2-3. PROCESS EQUIPMENT COOLING LOAD</h3>
+    <table class="rt"><tr><th>EQUIPMENT</th><th>Q'TY</th><th>POWER<br>(kW)</th><th>POWER LOAD<br>(kcal/h)</th>${P?'<th>PCW<br>(LPM)</th><th>PCW REMOVED<br>(kcal/h)</th>':''}${X?'<th>EXHAUST<br>(CMH)</th><th>EX. REMOVED<br>(kcal/h)</th>':''}<th>LOAD RATE<br>(%)</th><th>A/C LOAD<br>(kcal/h)</th></tr>
+    ${eqRows}<tr class="tot"><td>TOTAL</td><td></td>${td(pt.kw,1)}${td(pt.H)}${P?'<td></td>'+td(pt.K):''}${X?'<td></td>'+td(pt.M):''}<td></td>${td(pt.N)}</tr></table>
+    <p class="note">POWER LOAD = Q'TY × kW × 860${P?' · PCW REMOVED = LPM × ΔT × 60':''}${X?' · EX. REMOVED = CMH × 0.288 × ΔT':''} · A/C LOAD = (POWER${P?' − PCW':''}${X?' − EX.':''}) × LOAD RATE</p>`;
+  }
+  const p3 = `
+  ${procBlock}
+  <h3>2-4. ROOM LOAD CALCULATION</h3>
+  <table class="rt"><tr><th rowspan="2">ITEM</th><th rowspan="2">BASIS</th><th>LOAD</th></tr><tr><th>(kcal/h)</th></tr>
+   <tr>${td('BUILDING',0,'')}${td(`${S.bldgUnit} kcal/h·m² × ${fmt(rm.area)} m²`,0,'')}${td(L.bldg)}</tr>
+   <tr>${td('PERSON',0,'')}${td(`${S.personSH} kcal/h·人 × ${fmt(rm.persons)} 人`,0,'')}${td(L.person)}</tr>
+   <tr>${td('LIGHTING',0,'')}${td(`${S.lightUnit} kcal/h·m² (${S.illum} lux) × ${fmt(rm.area)} m² × ${S.lightFactor}`,0,'')}${td(L.light)}</tr>
+   <tr>${td('PROCESS EQUIP.',0,'')}${td(pt.mode==='density'?(R.procDensity.manual?`2-3 참조 (임의 POWER ${fmt(R.procDensity.kwEq,1)} kW)`:`2-3 참조 (면적당 ${fmt(S.targetDensity)} kcal/h·m² 기준 역산)`):'2-3 참조',0,'')}${td(L.proc)}</tr>
+   <tr>${td('FAN (BFU)',0,'')}${td(R.bfu.fanAuto?`BFU ${fmt(R.bfu.qty)} EA × ${fmt(S.bfuW)} W × ${S.bfuFactor} × 0.86`:'직접 입력',0,'')}${td(L.fan,1)}</tr>
+   <tr class="tot"><td>TOTAL (S.F : ${S.roomSF}%)</td><td>${fmt(L.density,1)} kcal/h·m² (${fmt(L.densityW,1)} W/m²)</td><td class="n hl">${fmt(L.total)}</td></tr>
+   <tr>${td('ROOM HEATING',0,'')}${td(`${S.heatUnit} kcal/h·m² × ${fmt(rm.area)} m²`,0,'')}${td(L.heat)}</tr></table>
+  <h3>2-5. AIR VOLUME (C.A / S.A / BFU / HFB)</h3>
+  <table class="rt"><tr><th>ITEM</th><th>BASIS</th><th>(CMH)</th></tr>
+   <tr>${td('C.A (Circulation)',0,'')}${td(`Volume ${fmt(rm.vol)} m³ × ${S.ach} 回/h (${cls.label})`,0,'')}${td(a2.ca)}</tr>
+   <tr>${td('S.A (by load)',0,'')}${td(`${fmt(L.total)} ÷ 0.29 ÷ ΔT ${fmt(a2.dT,1)}℃ (${a.RM.db} − ${fmt(a.DP.db,1)})`,0,'')}${td(a2.saLoad)}</tr>
+   <tr>${td(`S.A (C.A × ${fmt(S.caRatio)}%)`,0,'')}${td(`C.A ${fmt(a2.ca)} CMH × ${fmt(S.caRatio)}%`,0,'')}${td(a2.saCa)}</tr>
+   <tr>${td('S.A (temp. deviation)',0,'')}${td(`Volume ${fmt(rm.vol)} m³ × ${S.tempACH} 回/h (±${S.roomTtol}℃)`,0,'')}${td(a2.saTemp)}</tr>
+   <tr>${td('O.A',0,'')}${td('2-2 참조',0,'')}${td(oa.oa)}</tr>
+   <tr class="tot"><td>FINAL S.A</td><td>MAX of above — governed by ${a2.gov} (${fmt(a2.achActual,1)} 回/h)</td><td class="n hl">${fmt(a2.saFinal)}</td></tr>
+   <tr>${td('BFU (C.A − S.A)',0,'')}${td(`(${fmt(a2.ca)} − ${fmt(a2.saFinal)}) ÷ ${S.bfuCMM} CMM ÷ 60 × ${S.bfuSF} = ${fmt(R.bfu.auto)} EA → SELECTED${R.bfu.manual?' (manual)':''}`,0,'')}${td(`${fmt(R.bfu.qty)} EA`)}</tr>
+   <tr>${td('HFB (S.A)',0,'')}${td(`${fmt(a2.saFinal)} ÷ ${S.hfbCMM} CMM ÷ 60 × ${S.hfbSF} = ${fmt(R.bfu.hfb)} EA → SELECTED${R.bfu.hfbManual?' (manual)':''}`,0,'')}${td(`${fmt(R.bfu.hfbSel)} EA`)}</tr>
+  </table>
+  <h3>2-6. AHU SUMMARY</h3>
+  <table class="rt"><tr><th>AHU</th><th>Q'TY</th><th>ROOM COOLING<br>(kcal/h)</th><th>ROOM HEATING<br>(kcal/h)</th><th>S.A<br>(CMH)</th><th>R.A<br>(CMH)</th><th>O.A<br>(CMH)</th><th>O.A RATIO</th></tr>
+   <tr>${td(S.ahuTag,0,'c')}${td(n)}${td(R.per.rsh)}${td(R.per.heat)}${td(R.per.sa)}${td(R.per.ra)}${td(R.per.oa)}${td(fmt(R.per.oaRatio*100,1)+' %')}</tr></table>
+  <p class="note">* 대당 값 = 실 전체 값 ÷ AHU 대수</p>`;
+  pages.push(p3);
+
+  // p4: AHU coil calc
+  const sp = (x,d)=>fmt(x,d);
+  const p4 = `
+  <h2>3. AHU CALCULATION &amp; EQUIPMENT SCHEDULE</h2>
+  <p class="note">${esc(S.ahuTag)} — 1대 기준 (${n}대 중)</p>
+  <h3>3-1. PRE-COOLING COIL</h3>
+  <div class="lbl">* GIVEN DATA</div>
+  <div class="eq">R.S.H = ${sp(A.rsh)} kcal/h      R.L.H = ${sp(A.rlh)} kcal/h      OUT AIR VOLUME = ${sp(A.oa)} CMH</div>
+  <div class="lbl">* REQ'D DEHUMIDIFIED AIR Q'TY</div>
+  <div class="eq">Q = ${sp(A.rsh+A.rlh)} kcal/h ÷ (0.29 × (${a.RM.db} − ${fmt(a.DP.db,2)})℃) = ${sp(A.saReq)} CMH  →  적용 <b>${sp(A.sa)} CMH</b></div>
+  <div class="lbl">* ENT. AIR ENTHALPY (E.E)</div>
+  <div class="eq">E.E = (${sp(A.ra)} CMH × ${sp(a.RM.h,3)} + ${sp(A.oa)} CMH × ${sp(a.S.h,3)}) ÷ ${sp(A.sa)} CMH = ${sp(A.ee,3)} kcal/kg</div>
+  <div class="lbl">* LVG. AIR ENTHALPY (L.E) / MID POINT</div>
+  <div class="eq">L.E = ${sp(A.le,3)} kcal/kg (Dew point ${fmt(a.DP.db,1)}℃)      MID = (E.E + L.E) ÷ 2 = ${sp(A.mid,3)} kcal/kg</div>
+  <div class="lbl">* REQ'D COOLING COIL CAP.</div>
+  <div class="eq">${sp(A.sa)} CMH × 1.2 kg/m³ × (${sp(A.ee,3)} − ${sp(A.mid,3)}) = ${sp(A.preRaw)} kcal/h
+${sp(A.preRaw)} kcal/h × ${S.coolSF} (S.F) = <b>${sp(A.pre)} kcal/h</b>   (CHW ${S.cwSupply}℃ ⇒ ${S.cwSupply+S.cwDT}℃ : ${sp(A.preLpm)} LPM · ${sp(A.preConv,1)} ${cu()})</div>
+
+  <h3>3-2. RE-COOLING COIL</h3>
+  <div class="eq">${sp(A.sa)} CMH × 1.2 kg/m³ × (${sp(A.mid,3)} − ${sp(A.le,3)}) = ${sp(A.reRaw)} kcal/h
+${sp(A.reRaw)} kcal/h × ${S.coolSF} (S.F) = <b>${sp(A.re)} kcal/h</b>   (CHW ${S.cwSupply}℃ ⇒ ${S.cwSupply+S.cwDT}℃ : ${sp(A.reLpm)} LPM · ${sp(A.reConv,1)} ${cu()})</div>
+
+  <h3>3-3. HEATING COIL</h3>
+  <div class="lbl">* 동절기 난방 — WINTER HEATING  (HEATING LOAD ${sp(A.heatLoad)} kcal/h)</div>
+  <div class="eq">E.T = (${sp(A.ra)} × ${a.RM.db}℃ + ${sp(A.oa)} × ${a.W.db}℃) ÷ ${sp(A.sa)} = ${sp(A.et,2)} ℃
+L.T = ${a.RM.db}℃ + ${sp(A.heatLoad)} ÷ (0.29 × ${sp(A.sa)}) = ${sp(A.lt,2)} ℃
+${sp(A.sa)} CMH × 0.29 × (${sp(A.lt,2)} − ${sp(A.et,2)}) = ${sp(A.heatRaw)} kcal/h × ${S.heatSF} = <b>${sp(A.heatCap)} kcal/h</b></div>
+  <div class="lbl">* 하절기 난방 — SUMMER RE-HEATING (after dehumidification)</div>
+  <div class="eq">S.A Temp = ${a.RM.db} − (${sp(L.total)} − ${sp(L.proc)}) ÷ ${n} ÷ (0.29 × ${sp(A.sa)}) = ${sp(A.tsup,2)} ℃
+${sp(A.sa)} CMH × 0.29 × (${sp(A.tsup,2)} − ${fmt(a.DP.db,2)}) = ${sp(A.reheatRaw)} kcal/h × ${S.heatSF} = <b>${sp(A.reheat)} kcal/h</b></div>
+  <div class="eq">동절기 난방 ${sp(A.heatCap)} kcal/h (${sp(A.heatWKw,1)} kW) · 하절기 난방 ${sp(A.reheat)} kcal/h (${sp(A.heatSKw,1)} kW) → HEATER 선정 MAX = <b>${sp(A.heatSel)} kcal/h</b> (${sp(A.heatKw,1)} kW)</div>
+
+  <h3>3-4. HUMIDIFICATION</h3>
+  <div class="eq">E.H = (${sp(A.ra)} × ${sp(a.RM.ah,6)} + ${sp(A.oa)} × ${sp(a.W.ah,6)}) ÷ ${sp(A.sa)} = ${sp(A.eh,6)} kg/kg'
+L.H = ${sp(A.lh,6)} kg/kg'
+${sp(A.sa)} CMH × 1.2 × (${sp(A.lh,6)} − ${sp(A.eh,6)}) = ${sp(A.humRaw,1)} kg/h × ${S.humSF} = <b>${sp(A.hum)} kg/h</b></div>`;
+  pages.push(p4);
+  pages.push(`<h3>3-5. PSYCHROMETRIC CHART (습공기 선도)</h3>
+  <p class="note">${esc(S.ahuTag)} 1대 기준 · S.A ${sp(A.sa)} CMH (O.A ${sp(A.oa)} / R.A ${sp(A.ra)}) · Site pressure ${DESIGN_CONDITIONS.pressureLabel}</p>
+  <div style="margin:4px 0 8px">${psychroSVG()}</div>
+  ${psychroTable('rt')}
+  <p class="note">하절기: S1 외기 + R 환기 → S2 혼합 → (Pre / Re Cooling) → S3 코일 출구 → (재열) → S4 급기 → R 실내 · 동절기: W1 외기 + R 환기 → W2 혼합 → (가열) → W3 → (가습) → W4 급기 → R 실내</p>`);
+
+  // p5: fan + schedule
+  const p5 = `
+  <h3>3-6. AHU CAPACITY — 전체 / 대당</h3>
+  ${capTable(R.ahuAll, A, T)}
+  <p class="note">전체 = 실 전체를 1대로 본 용량 · 대당 = 풍량을 ${n}대로 나눈 뒤 1대 기준으로 재계산 (풍량 1,000 CMH 단위 올림) · 합계 = 대당 × ${n}대 · 냉방 용량 환산: 1 ${cu()} = ${fmt(S.coolKcal)} kcal/h (${S.coolType==='DX'?'공냉식 DX':'수냉식'})</p>`;
+  pages.push(p5);
+  const cvr = k => `${sp(k/S.coolKcal,1)} ${cu()}`;
+  const p6 = `
+  <h3>3-7. EQUIPMENT SELECTION (${esc(S.ahuTag)} × ${n})</h3>
+  <table class="rt"><tr><th style="width:26%">ITEM</th><th>SPECIFICATION (1대 기준)</th><th style="width:28%">REMARKS</th></tr>
+   <tr>${td('SUPPLY AIR VOLUME',0,'')}${td(`${sp(A.sa)} CMH (${sp(A.sa/60)} CMM)`,0,'')}${td('',0,'')}</tr>
+   <tr>${td('OUTSIDE AIR VOLUME',0,'')}${td(`${sp(A.oa)} CMH (${sp(A.oa/60)} CMM)`,0,'')}${td('',0,'')}</tr>
+   <tr>${td('PRE COOLING CAP.',0,'')}${td(`${sp(A.pre)} kcal/h (${cvr(A.pre)}${S.coolType==='CW'?`, ${sp(A.preLpm)} LPM`:''})`,0,'')}${td(S.coolType==='CW'?`${S.cwSupply}~${S.cwSupply+S.cwDT}℃ Chilled Water`:'Air cooled DX',0,'')}</tr>
+   <tr>${td('RE COOLING CAP.',0,'')}${td(`${sp(A.re)} kcal/h (${cvr(A.re)}${S.coolType==='CW'?`, ${sp(A.reLpm)} LPM`:''})`,0,'')}${td(S.coolType==='CW'?`${S.cwSupply}~${S.cwSupply+S.cwDT}℃ Chilled Water`:'Air cooled DX',0,'')}</tr>
+   <tr>${td('HEATING CAP. (WINTER)',0,'')}${td(`${sp(A.heatCap)} kcal/h (${sp(A.heatWKw,1)} kW)`,0,'')}${td(`${S.heatSource} · 동절기 난방`,0,'')}</tr>
+   <tr>${td('HEATING CAP. (SUMMER)',0,'')}${td(`${sp(A.reheat)} kcal/h (${sp(A.heatSKw,1)} kW)`,0,'')}${td(`${S.heatSource} · 하절기 난방(재열)`,0,'')}</tr>
+   <tr>${td('HUMIDITY CAP.',0,'')}${td(`${sp(A.hum)} kg/h`,0,'')}${td(S.humType,0,'')}</tr>
+</table>
+  <h3>3-8. H.V.A.C EQUIPMENT SCHEDULE</h3>
+  <table class="rt"><tr><th rowspan="2">EQUIP. NO</th><th rowspan="2">Q'TY</th><th colspan="2">SUPPLY AIR (CMH)</th><th colspan="2">HEATING WINTER (kcal/h)</th><th colspan="2">HEATING SUMMER (kcal/h)</th><th colspan="2">HUMIDITY (kg/h)</th><th colspan="3">COOLING (kcal/h)</th></tr>
+   <tr><th>SUB</th><th>TOTAL</th><th>SUB</th><th>TOTAL</th><th>SUB</th><th>TOTAL</th><th>SUB</th><th>TOTAL</th><th>PRE</th><th>RE</th><th>TOTAL</th></tr>
+   <tr>${td(S.ahuTag,0,'c')}${td(n)}${td(A.sa)}${td(T.sa)}${td(A.heatCap)}${td(T.heatW)}${td(A.reheat)}${td(T.heatS)}${td(A.hum)}${td(T.hum)}${td(A.pre)}${td(A.re)}${td(T.cool)}</tr>
+   <tr class="tot"><td>TOTAL</td><td></td><td></td>${td(T.sa)}<td></td>${td(T.heatW)}<td></td>${td(T.heatS)}<td></td>${td(T.hum)}<td></td><td></td>${td(T.cool)}</tr></table>
+  <table class="rt"><tr><th style="width:26%">TOTAL COOLING</th><td class="n hl">${sp(T.cool)} kcal/h (${cvr(T.cool)})</td></tr>
+   ${S.coolType==='CW'?`<tr><th>CHILLED WATER</th><td class="n">${sp(T.cwLpm)} LPM (ΔT ${S.cwDT}℃)</td></tr>`:''}
+   <tr><th>REQUIRED CHILLER CAP.</th><td class="n">${sp(T.chReq,1)} RT</td></tr>
+   ${Object.values(CH_TYPES).map(v=>{ const c=T[v.tKey]; return c.rt>0?`<tr><th>${v.en} (REF.)</th><td class="n">${fmt(c.rt)} RT × ${c.qty} EA = ${fmt(c.total)} RT (${fmt(c.total*S.coolKcal)} kcal/h) · req. ${sp(c.perReq,1)} RT/unit · margin ${sp((c.margin-1)*100,1)}%</td></tr>`:''; }).join('')}</table>
+  <p class="note">Cooling capacity conversion: 1 ${cu()} = ${fmt(S.coolKcal)} kcal/h (${S.coolType==='DX'?'air cooled DX':'water cooled'}) </p>`;
+  pages.push(p6);
+
+  const total = pages.length;
+  $('pages').innerHTML = pages.map((p,i)=> i===0 ? p.replace('#T',total) : page('', p, i+1, total)).join('');
+  trDOM($('pages'));
+}
+
+// ---------- view switching / print ----------
+function show(view){
+  if(view==='report' && !R.ready){ toast('면적 등 필수 입력값을 먼저 넣어주세요: '+MISSING().join(', ')); view='calc'; }
+  const rpt = view==='report';
+  if(rpt) buildReport();
+  $('calc').style.display = rpt?'none':'block';
+  $('report').style.display = rpt?'block':'none';
+  $('tabCalc').setAttribute('aria-pressed', !rpt); $('tabRpt').setAttribute('aria-pressed', rpt);
+  window.scrollTo(0,0);
+}
+function doPrint(){
+  if(!R.ready){ show('report'); return; }
+  show('report');
+  setTimeout(()=>{ let ok=true; try{ window.print(); }catch(e){ ok=false; }
+    if(!ok || window.self!==window.top) $('printNote').innerHTML = '<b>이 미리보기 화면에서는 인쇄가 막혀 있을 수 있습니다.</b> 함께 전달된 HTML 파일을 브라우저(Chrome/Edge)에서 직접 열어 "인쇄 / PDF 저장"을 누르세요. A4 세로, 여백 없음, 배경 그래픽 켜기.';
+  }, 200);
+}
+$('tabCalc').onclick=()=>show('calc'); $('tabRpt').onclick=()=>show('report'); $('btnBack').onclick=()=>show('calc');
+$('btnPrint').onclick=doPrint; $('btnPrint2').onclick=doPrint;
+$('btnReset').onclick=()=>{ S=clone(DEFAULTS); $('side').innerHTML=''; buildInputs(); update(); toast('회사 엑셀 rev4 기본값으로 복원했습니다.'); };
+$('btnCopy').onclick=async()=>{ const txt=JSON.stringify(S); try{ await navigator.clipboard.writeText(txt); toast('입력값(JSON)을 클립보드에 복사했습니다.'); }catch(e){ $('pasteTxt').value=txt; $('pasteDlg').showModal(); toast('자동 복사가 막혀 있습니다. 상자 안 내용을 직접 복사하세요.'); } };
+$('btnPaste').onclick=()=>{ $('pasteTxt').value=''; $('pasteDlg').showModal(); };
+$('pasteForm').addEventListener('submit',e=>{
+  if(e.submitter && e.submitter.value==='ok'){ try{ const o=JSON.parse($('pasteTxt').value); S=Object.assign(clone(DEFAULTS),o); $('side').innerHTML=''; buildInputs(); update(); toast('입력값을 불러왔습니다.'); }catch(err){ e.preventDefault(); toast('JSON 형식이 올바르지 않습니다. "입력값 복사"로 만든 내용을 그대로 붙여넣으세요.'); } }
+});
+applyUI();
+if(location.hash==='#report'){ buildInputs(); update(); show('report'); } else { buildInputs(); update(); }
+trDOM(document.querySelector('header')); trDOM($('report')); trDOM(document.getElementById('pasteDlg'));
+</script>
+</body>
+</html>
