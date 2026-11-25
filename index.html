@@ -655,14 +655,15 @@ function calculate(I0) {
       .map(x => ({ ...x, oaTot: x.qty * x.oaPer }));
     const self = { tag: I.ahuTag || 'AHU', qty: n, oaPer: oa / n, oaTot: oa, src: 'this', file: '' };
     const list = [self, ...extra], oaSum = list.reduce((s, x) => s + x.oaTot, 0);
-    const O = { n: nO, list, oaSum, Sin, S };
-    O.sa = XL.roundup(oaSum / nO, -3); O.oa = O.sa;
-    O.ee = S.h; O.le = Sin.h; O.mid = (O.ee + O.le) / 2;
-    O.preRaw = XL.roundup(O.sa * 1.2 * (O.ee - O.mid), -2); O.pre = XL.roundup(O.preRaw * sf, -2);
-    O.reRaw = XL.roundup(O.sa * 1.2 * (O.mid - O.le), -2); O.re = XL.roundup(O.reRaw * sf, -2);
-    O.cool = O.pre + O.re; O.coolKw = O.cool / 860; O.coilIdx = O.sa > 0 ? O.coolKw / O.sa * 1000 : 0; O.twoCoil = O.coilIdx > 19;
-    O.preLpm = O.pre / (I.cwDT * 60); O.reLpm = O.re / (I.cwDT * 60);
-    O.dehum = O.sa * 1.2 * Math.max(0, S.ah - Sin.ah);   // condensate (reference)
+    const unit = (sa) => { const u = { sa, oa: sa, ee: S.h, le: Sin.h }; u.mid = (u.ee + u.le) / 2;
+      u.preRaw = XL.roundup(sa * 1.2 * (u.ee - u.mid), -2); u.pre = XL.roundup(u.preRaw * sf, -2);
+      u.reRaw = XL.roundup(sa * 1.2 * (u.mid - u.le), -2); u.re = XL.roundup(u.reRaw * sf, -2);
+      u.cool = u.pre + u.re; u.coolKw = u.cool / 860; u.coilIdx = sa > 0 ? u.coolKw / sa * 1000 : 0; u.twoCoil = u.coilIdx > 19;   // company rule (OAC & AHU)
+      u.preLpm = u.pre / (I.cwDT * 60); u.reLpm = u.re / (I.cwDT * 60); u.dehum = sa * 1.2 * Math.max(0, S.ah - Sin.ah); return u; };
+    const O = { n: nO, list, oaSum, Sin, S, ...unit(XL.roundup(oaSum / nO, -3)) };
+    O.all = unit(XL.roundup(oaSum, -3));
+    O.maxSa = 130000; O.rec = Math.ceil(oaSum / O.maxSa); O.over = O.sa > O.maxSa;
+    if (O.over) R.warn.push(`OAC 대당 S.A ${Math.round(O.sa).toLocaleString('en-US')} CMH가 사내 기준 최대 130,000 CMH를 초과합니다. OAC ${O.rec}대 이상 권장.`);
     O.tot = { sa: O.sa * nO, cool: O.cool * nO, pre: O.pre * nO, re: O.re * nO };
     if (Sin.h >= S.h) R.warn.push('OAC 토출 엔탈피가 외기 엔탈피보다 높습니다 — OAC 토출 조건을 확인하세요.');
     R.oac = O; T.oacCool = O.tot.cool;
@@ -1028,7 +1029,6 @@ function oacHTML(){
   return `<div class="wrap oacwrap"><div>
     ${oacOn()?'':`<div class="card warns" style="margin-bottom:12px"><p>현재 공조 방식이 <b>AHU 단독</b>입니다. 아래 버튼으로 <b>OAC + AHU</b>로 바꾸면 OAC 계산이 적용됩니다. <button class="btn" data-sys="oac" style="margin-left:8px">OAC + AHU 적용</button></p></div>`}
     <details class="card" open><summary><span class="no">OAC</span>외조기 설정 · 코일 토출 조건<span class="hint">AHU는 이 토출 상태의 공기를 외기로 받음</span></summary>
-      <div class="grid">${f('tag','OAC No.','')}${f('qty','OAC 대수','대')}</div>
       <div class="scroll" style="padding-top:0"><table class="tbl-in cond"><thead><tr><th style="width:28%">STATE</th><th>DRY BULB<br>(℃ DB)</th><th>RELA. HUMIDITY<br>(% RH)</th><th>ABS. HUMIDITY<br>(kg/kg')</th><th>ENTHALPY<br>(kcal/kg)</th></tr></thead><tbody>
         <tr class="fx"><td>SUMMER (외기 · OAC 입구)</td><td class="n" id="ot_sdb"></td><td class="n" id="ot_srh"></td><td class="n" id="ot_sah"></td><td class="n" id="ot_sh"></td></tr>
         <tr><td><b>OAC 코일 토출 (S.A)</b></td><td><input data-oac="db" type="number" step="any" value="${O.db??''}" aria-label="토출 건구온도"></td><td><input data-oac="rh" type="number" step="any" value="${O.rh??''}" aria-label="토출 상대습도"></td>
@@ -1042,32 +1042,33 @@ function oacHTML(){
       <div class="rbar"><button class="btn" id="addOacAhu">+ AHU 직접 추가</button><button class="btn" id="addOacFile">+ 저장 파일(.json)에서 추가</button><input type="file" id="oacFile" accept=".json,application/json" multiple hidden>
         <span class="u">다른 공조기(ZONE)를 "입력값 저장"으로 저장해 두었다면 그 파일을 넣어 대수·외기량을 자동으로 가져옵니다.</span></div>
     </details>
-    <section class="card" id="oacRes"></section>
+    <div id="oacRes"></div>
+    <div class="card" style="margin-bottom:12px"><h2 style="font-size:13px;padding:10px 14px;border-bottom:1px solid var(--rule);display:flex;justify-content:space-between">OAC 용량 — 전체 <span class="pill">Σ AHU 외기량 기준 (1대로 본 용량)</span></h2><div id="oacAll"></div></div>
+    <div class="card" style="margin-bottom:12px"><h2 style="font-size:13px;padding:10px 14px;border-bottom:1px solid var(--rule)">OAC 용량 — 대당</h2>
+      <div class="ahuin"><div><label for="o_tag">OAC No.</label><input id="o_tag" data-oac="tag" value="${esc(O.tag??'')}"></div><div><label for="o_qty">OAC 대수 (대)</label><input id="o_qty" data-oac="qty" type="number" min="1" step="1" value="${O.qty??1}"></div>
+        <div id="oacQtyHint" style="grid-column:1/-1;font-size:11.5px;color:var(--muted)"></div></div>
+      <div id="oacPer"></div></div>
   </div><aside class="side" id="oacSide"></aside></div>`;
 }
-function oacResHTML(){
-  const O=R.oac; if(!O) return '<div class="empty">OAC + AHU 방식을 선택하면 계산 결과가 표시됩니다.</div>';
-  const cv=k=>`${fmt(k/S.coolKcal,1)} ${cu()}`, sp=fmt;
-  return `<h2 style="font-size:13px;padding:10px 14px;border-bottom:1px solid var(--rule)">OAC 계산 결과 <span class="pill">${esc(S.oac.tag)} × ${O.n}대 · 1대 기준</span></h2>
-    <div class="kpis">
-      <div class="kpi"><div class="k">급기량 S.A (= O.A 100%)</div><div class="v" style="color:var(--blue)">${fmt(O.sa)}<small>CMH</small></div><div class="ref">Σ O.A ${fmt(O.oaSum)} ÷ ${O.n}대 → 1,000 단위 올림</div></div>
-      <div class="kpi"><div class="k">냉방 용량 <span class="pill${O.twoCoil?' w':''}">${O.twoCoil?'Pre + Re (2 COIL)':'1 COIL'}</span></div><div class="v">${fmt(O.cool)}<small>kcal/h</small></div><div class="ref">${cv(O.cool)} · ${fmt(O.coolKw,1)} kW · Q/L ${fmt(O.coilIdx,2)} ${O.twoCoil?'&gt;':'≤'} 19</div></div>
-    </div>
+function oacCap(u, per){
+  const cv=k=>`${fmt(k/S.coolKcal,1)} ${cu()}`;
+  return `<div class="kpis">
+      <div class="kpi"><div class="k">급기량 S.A (= O.A 100%)</div><div class="v" style="color:var(--blue)">${fmt(u.sa)}<small>CMH</small></div></div>
+      <div class="kpi"><div class="k">${per?'대당 냉방 용량 (1대)':'전체 냉방 용량'} <span class="pill${u.twoCoil?' w':''}">${u.twoCoil?'Pre + Re Cooling (2 COIL)':'Cooling (1 COIL)'}</span></div><div class="v">${fmt(u.cool)}<small>kcal/h</small></div><div class="ref">${cv(u.cool)} · ${fmt(u.coolKw,1)} kW</div></div></div>
     <div class="list">
-      <div class="sec"><span>COOLING COIL (외기 → 토출)</span></div>
-      <div><span>E.E 입구 엔탈피 (외기 ${O.S.db}℃ / ${O.S.rh}%)</span><b>${fmt(O.ee,3)} kcal/kg</b></div>
-      <div><span>L.E 토출 엔탈피 (${fmt(O.Sin.db,1)}℃ / ${fmt(O.Sin.rh,0)}%)</span><b>${fmt(O.le,3)} kcal/kg</b></div>
-      <div><span>MID = (E.E + L.E) ÷ 2</span><b>${fmt(O.mid,3)} kcal/kg</b></div>
-      <div><span>Pre Cooling = ${fmt(O.sa)} × 1.2 × (E.E − MID) × ${S.coolSF}</span><b>${fmt(O.pre)} kcal/h<small>${cv(O.pre)}</small></b></div>
-      <div><span>Re Cooling = ${fmt(O.sa)} × 1.2 × (MID − L.E) × ${S.coolSF}</span><b>${fmt(O.re)} kcal/h<small>${cv(O.re)}</small></b></div>
-      ${S.coolType==='CW'?`<div><span>냉수량 (ΔT ${S.cwDT}℃)</span><b>${fmt(O.preLpm+O.reLpm)} LPM</b></div>`:''}
-      <div><span>응축수 (참고) = S.A × 1.2 × (외기 AH − 토출 AH)</span><b>${fmt(O.dehum,1)} kg/h</b></div>
-      <div class="sec"><span>합계 (1대 × ${O.n}대)</span></div>
-      <div><span>총 급기량</span><b>${fmt(O.tot.sa)} CMH</b></div>
-      <div><span>총 냉방 용량</span><b>${fmt(O.tot.cool)} kcal/h<small>${cv(O.tot.cool)}</small></b></div>
-      <div style="background:var(--tint);padding-left:6px;padding-right:6px"><span><b style="font-family:var(--f-body)">AHU + OAC 총 냉방</b> (칠러 선정 기준)</span><b style="font-weight:700">${fmt(R.tot.coolAll)} kcal/h<small>${cv(R.tot.coolAll)}</small></b></div>
-    </div>`;
+      ${per?`<div class="sec"><span>COOLING COIL 구성 판정 (사내 기준)</span></div>
+      <div><span>Q / L × 1000 = ${fmt(u.coolKw,1)} kW ÷ ${fmt(u.sa)} CMH × 1000</span><b>${fmt(u.coilIdx,2)}<small>${u.twoCoil?'&gt; 19':'≤ 19'}</small></b></div>
+      <div><span>판정 결과</span><span class="pill${u.twoCoil?' w':''}">${u.twoCoil?'&gt; 19 → Pre + Re Cooling coil 필수':'≤ 19 → Cooling coil 1개'}</span></div>
+      <div style="font-size:11px;color:var(--muted)"><span>Q(kW) = 냉방 용량 kcal/h ÷ 860 · L = 대당 급기량 · 19 초과 시 2코일 필수, 19 이하 시 단일 코일</span></div>`:''}
+      <div class="sec"><span>COOLING COIL 계산 (외기 → 토출)</span></div>
+      <div><span>E.E 외기 ${R.oac.S.db}℃ / ${R.oac.S.rh}% · L.E 토출 ${fmt(R.oac.Sin.db,1)}℃ · MID</span><b>${fmt(u.ee,3)} / ${fmt(u.le,3)} / ${fmt(u.mid,3)}</b></div>
+      ${u.twoCoil?`<div><span>Pre Cooling = ${fmt(u.sa)} × 1.2 × (E.E − MID) × ${S.coolSF}</span><b>${fmt(u.pre)} kcal/h<small>${cv(u.pre)}</small></b></div>
+      <div><span>Re Cooling = ${fmt(u.sa)} × 1.2 × (MID − L.E) × ${S.coolSF}</span><b>${fmt(u.re)} kcal/h<small>${cv(u.re)}</small></b></div>`
+      :`<div><span>Cooling coil (1 COIL) = Pre ${fmt(u.pre)} + Re ${fmt(u.re)}</span><b>${fmt(u.cool)} kcal/h<small>${cv(u.cool)}</small></b></div>`}
+      ${S.coolType==='CW'?(u.twoCoil?`<div><span>냉수량 Pre / Re (ΔT ${S.cwDT}℃)</span><b>${fmt(u.preLpm)} / ${fmt(u.reLpm)} LPM</b></div>`:`<div><span>냉수량 (ΔT ${S.cwDT}℃)</span><b>${fmt(u.preLpm+u.reLpm)} LPM</b></div>`):''}
+      <div><span>응축수 (참고)</span><b>${fmt(u.dehum,1)} kg/h</b></div></div>`;
 }
+function oacResHTML(){ return R.oac ? '' : '<div class="card empty" style="margin-bottom:12px">OAC + AHU 방식을 선택하면 계산 결과가 표시됩니다.</div>'; }
 function updateOAC(){
   if(!$('oacRes')) return;
   const O=R.oac, Sx=R.air.S, Sin=R.air.Sin;
@@ -1081,6 +1082,15 @@ function updateOAC(){
   (S.oac.ahus||[]).forEach((x,i)=>set('oxT'+i, fmt((+x.qty||0)*(+x.oa||0))));
   set('oxSum', O?fmt(O.oaSum):fmt(R.oa.oa+(S.oac.ahus||[]).reduce((s,x)=>s+(+x.qty||0)*(+x.oa||0),0)));
   $('oacRes').innerHTML = oacResHTML();
+  if(O){ const cv=k=>`${fmt(k/S.coolKcal,1)} ${cu()}`;
+    $('oacAll').innerHTML = oacCap(O.all,false);
+    $('oacQtyHint').innerHTML = `참조: 사내 기준 1대 S.A 최대 <b>${fmt(O.maxSa)} CMH</b> → Σ O.A ${fmt(O.oaSum)} ÷ ${fmt(O.maxSa)} = 권장 <b>${O.rec}대 이상</b> · 현재 대당 ${fmt(O.sa)} CMH <span class="pill${O.over?' w':''}">${O.over?'최대 초과':'기준 이내'}</span>`;
+    $('oacPer').innerHTML = `<div class="list" style="padding-bottom:0"><div class="sec"><span>${esc(S.oac.tag)} — 대당 (1대 기준${O.n>1?` · Σ O.A ÷ ${O.n}대`:''})</span></div></div>` + oacCap(O,true)
+      + `<div class="list"><div class="sec"><span>합계 (대당 × ${O.n}대)</span></div>
+        <div><span>총 급기량</span><b>${fmt(O.tot.sa)} CMH</b></div>
+        <div><span>총 냉방 용량</span><b>${fmt(O.tot.cool)} kcal/h<small>${cv(O.tot.cool)}</small></b></div>
+        <div style="background:var(--tint);padding-left:6px;padding-right:6px"><span><b style="font-family:var(--f-body)">AHU + OAC 총 냉방</b> (칠러 선정 기준)</span><b style="font-weight:700">${fmt(R.tot.coolAll)} kcal/h<small>${cv(R.tot.coolAll)}</small></b></div></div>`;
+  } else { ['oacAll','oacPer','oacQtyHint'].forEach(id=>{ const e=$(id); if(e) e.innerHTML=''; }); }
   const sd=$('oacSide'); if(sd) sd.innerHTML = O?`<div class="card"><h2>AHU 외기 조건 (OAC 급기)</h2><div class="list">
       <div><span>AHU 도입 외기 = OAC 토출</span><b>${fmt(Sin.db,1)}℃ / ${fmt(Sin.rh,0)}%</b></div>
       <div><span>절대습도 / 엔탈피</span><b>${fmt(Sin.ah,5)} / ${fmt(Sin.h,2)}</b></div>
@@ -1247,9 +1257,11 @@ function renderSide(){
     </div>`;
   { const so=$('sideOac'), O=R.oac; so.hidden=!O; if(O) so.innerHTML = `<h2>OAC 외조기 <span class="pill">${esc(S.oac.tag)} × ${O.n}대</span></h2>
       <div class="kpis"><div class="kpi"><div class="k">OAC 급기량 (대당)</div><div class="v">${fmt(O.sa)}<small>CMH</small></div></div>
-      <div class="kpi"><div class="k">OAC 냉방 (대당)</div><div class="v">${fmt(O.cool)}<small>kcal/h</small></div></div></div>
+      <div class="kpi"><div class="k">OAC 냉방 (대당) <span class="pill${O.twoCoil?' w':''}">${O.twoCoil?'Pre+Re':'1 COIL'}</span></div><div class="v">${fmt(O.cool)}<small>kcal/h</small></div></div></div>
       <div class="list"><div><span>AHU 도입 외기 = OAC 토출</span><b>${fmt(R.air.Sin.db,1)}℃ / ${fmt(R.air.Sin.rh,0)}% · h ${fmt(R.air.Sin.h,2)}</b></div>
       <div><span>Σ AHU 외기량 (${O.list.length}종)</span><b>${fmt(O.oaSum)} CMH</b></div>
+      <div><span>대수 분할 (기준 ${fmt(O.maxSa)} CMH/대)</span><b>${O.n}대 적용 · 권장 ${O.rec}대 이상${O.over?' ⚠':''}</b></div>
+      <div><span>Q/L × 1000 (대당)</span><b>${fmt(O.coilIdx,2)} → ${O.twoCoil?'Pre + Re':'1 COIL'}</b></div>
       <div><span>OAC 총 냉방 (× ${O.n}대)</span><b>${fmt(O.tot.cool)} kcal/h</b></div>
       <div style="border-bottom:0"><button class="btn" data-goto="oac">OAC 상세 →</button></div></div>`; }
   $('sideAll').innerHTML = capList(B,false);
@@ -1425,10 +1437,63 @@ function psychroSVG(){
   if(by.S0) g+=ln(by.S0,by.S1,r,0,1);
   g+=ln(by.S1,by.S2,r,'5 3')+ln(by.R,by.S2,r,'5 3')+ln(by.S2,by.S3,r,0,1)+(by.S4.t>by.S3.t+0.05?ln(by.S3,by.S4,r,0,1):'')+ln(by.S4,by.R,r,'1.5 3',1);
   g+=ln(by.W1,by.W2,bl,'5 3')+ln(by.R,by.W2,bl,'5 3')+ln(by.W2,by.W3,bl,0,1)+ln(by.W3,by.W4,bl,0,1)+ln(by.W4,by.R,bl,'1.5 3',1);
-  // points
-  const off={S0:[8,-6,'start'],S1:[-8,-6,'end'],S2:[-8,12,'end'],S3:[-8,-7,'end'],S4:[0,-9,'middle'],R:[0,-10,'middle'],W1:[-8,4,'end'],W2:[6,-8,'start'],W3:[8,4,'start'],W4:[8,-4,'start']};
-  pts.forEach(p=>{ const [dx,dy,anc]=off[p.id]||[8,-6,'start'];
-    g+=`<circle cx="${X(p.t)}" cy="${Y(p.w)}" r="${p.id==='R'?5:3.6}" fill="${p.id==='R'?'#fff':p.c}" stroke="${p.c}" stroke-width="1.6"/><text x="${X(p.t)+dx}" y="${Y(p.w)+dy}" text-anchor="${anc}" class="pl" fill="${p.c}" paint-order="stroke" stroke="#fff" stroke-width="3">${p.id}</text>`; });
+  // points + labels (자동 배치: 겹치면 빈 곳으로 옮기고 얇은 지시선 연결)
+  const segs=[]; const seg=(a,b)=>{ if(a&&b) segs.push([X(a.t),Y(a.w),X(b.t),Y(b.w)]); };
+  if(by.S0) seg(by.S0,by.S1); seg(by.S1,by.S2); seg(by.R,by.S2); seg(by.S2,by.S3); seg(by.S3,by.S4); seg(by.S4,by.R);
+  seg(by.W1,by.W2); seg(by.R,by.W2); seg(by.W2,by.W3); seg(by.W3,by.W4); seg(by.W4,by.R);
+  const obs=[]; // [x0,y0,x1,y1]
+  pts.forEach(p=>{ const x=X(p.t),y=Y(p.w),r=p.id==='R'?6:5; obs.push([x-r,y-r,x+r,y+r,2]); });
+  segs.forEach(([x0,y0,x1,y1])=>{ const L=Math.hypot(x1-x0,y1-y0), n=Math.max(1,Math.ceil(L/5)); for(let i=0;i<=n;i++){ const x=x0+(x1-x0)*i/n, y=y0+(y1-y0)*i/n; obs.push([x-1.5,y-1.5,x+1.5,y+1.5,1]); } });
+  // 범례 영역
+  obs.push([ml,mt,ml+330,mt+50,5]);
+  const hit=(b)=>obs.reduce((s,o)=>s+((b[0]<o[2]&&b[2]>o[0]&&b[1]<o[3]&&b[3]>o[1])?o[4]:0),0);
+  const pref={S0:[8,-6],S1:[-8,-6],S2:[-8,12],S3:[-8,-7],S4:[0,-9],R:[0,-10],W1:[-8,4],W2:[6,-8],W3:[8,4],W4:[8,-4]};
+  const dirs=[]; for(let k=0;k<16;k++) dirs.push(k*Math.PI/8);
+  let labs='', leads='', dots='';
+  // 몰려 있는 점 → 오른쪽 빈 공간에 라벨을 세로로 정렬하고 얇은 지시선(꺾은선)으로 연결
+  const isCrowd=p=>pts.some(q=>q!==p && Math.hypot(X(q.t)-X(p.t),Y(q.w)-Y(p.w))<24);
+  const crowdPts=pts.filter(isCrowd), placed=new Set(), reserved={};
+  // 겹치지 않는 점의 기본 라벨 자리는 먼저 확보
+  pts.filter(p=>!isCrowd(p)).forEach(p=>{ const x=X(p.t),y=Y(p.w), bw=p.id.length*7.6+4, bh=13, pr=pref[p.id]||[8,-6];
+    const cx=x+pr[0]+(pr[0]>0?bw/2:pr[0]<0?-bw/2:0), cy=y+pr[1]-3, bx=[cx-bw/2,cy-bh/2,cx+bw/2,cy+bh/2];
+    if(bx[0]>ml+2&&bx[2]<W-mr-2&&bx[1]>mt+2&&bx[3]<H-mb-2&&hit(bx)===0){ reserved[p.id]={cx,cy,b:bx,far:false}; obs.push([bx[0]-2,bx[1]-1,bx[2]+2,bx[3]+1,5]); } });
+  if(crowdPts.length){
+    let groups=crowdPts.map(p=>[p]); const near=(g1,g2)=>g1.some(a=>g2.some(q=>Math.hypot(X(q.t)-X(a.t),Y(q.w)-Y(a.w))<70));
+    for(let merged=true;merged;){ merged=false; for(let i=0;i<groups.length&&!merged;i++) for(let j=i+1;j<groups.length;j++) if(near(groups[i],groups[j])){ groups[i]=groups[i].concat(groups[j]); groups.splice(j,1); merged=true; break; } }
+    groups.forEach(gp=>{ gp.sort((a,b)=>Y(a.w)-Y(b.w)); const lh=16, n=gp.length;
+      const cy0=gp.reduce((s,p)=>s+Y(p.w),0)/n, maxX=Math.max(...gp.map(p=>X(p.t)));
+      let ys=gp.map((p,i)=>cy0+(i-(n-1)/2)*lh);
+      ys=ys.map(v=>Math.min(Math.max(v,mt+10),H-mb-10));
+      let colX=maxX+46, ok=false;
+      for(let tr=0;tr<12&&!ok;tr++,colX+=12){ ok=gp.every((p,i)=>{ const bw=p.id.length*7.6+4; return colX+bw<W-mr-2 && hit([colX,ys[i]-7,colX+bw,ys[i]+7])===0; }); }
+      if(!ok) colX=maxX+46;
+      gp.forEach((p,i)=>{ const x=X(p.t),y=Y(p.w), bw=p.id.length*7.6+4, ly=ys[i], ex=colX-3, kx=colX-14;
+        obs.push([colX-2,ly-8,colX+bw+2,ly+8,5]);
+        leads+=`<polyline points="${x.toFixed(1)},${y.toFixed(1)} ${kx.toFixed(1)},${ly.toFixed(1)} ${ex.toFixed(1)},${ly.toFixed(1)}" fill="none" stroke="${p.c}" stroke-width="0.7" opacity="0.8"/>`;
+        dots+=`<circle cx="${x}" cy="${y}" r="${p.id==='R'?5:3.6}" fill="${p.id==='R'?'#fff':p.c}" stroke="${p.c}" stroke-width="1.6"/>`;
+        labs+=`<text x="${colX.toFixed(1)}" y="${(ly+4).toFixed(1)}" class="pl" fill="${p.c}" paint-order="stroke" stroke="#fff" stroke-width="3">${p.id}</text>`;
+        placed.add(p.id); }); });
+  }
+  pts.filter(p=>!placed.has(p.id)).forEach(p=>{ const x=X(p.t),y=Y(p.w), bw=p.id.length*7.6+4, bh=13;
+    const box=(cx,cy)=>[cx-bw/2,cy-bh/2,cx+bw/2,cy+bh/2];
+    const inside=b=>b[0]>ml+2&&b[2]<W-mr-2&&b[1]>mt+2&&b[3]<H-mb-2;
+    const pr=pref[p.id]||[8,-6]; let best=null;
+    const crowd=pts.some(q=>q!==p && Math.hypot(X(q.t)-x,Y(q.w)-y)<24);
+    if(reserved[p.id]) best=reserved[p.id];
+    // 1) 기본 위치 (주변에 다른 점이 몰려 있으면 생략 → 지시선으로 분리)
+    if(!best&&!crowd){ const cx=x+pr[0]+(pr[0]>0?bw/2:pr[0]<0?-bw/2:0), cy=y+pr[1]-3, b=box(cx,cy); if(inside(b)&&hit(b)===0) best={cx,cy,b,far:false}; }
+    // 2) 주변 탐색 (가까운 곳부터) → 멀어지면 지시선
+    if(!best) for(const rad of (crowd?[30,40,52,66,82,100,124,150]:[14,20,28,38,50,64,80,100,124])){ let cand=null,cs=1e9;
+      for(const a of dirs){ const cx=x+Math.cos(a)*(rad+bw/2), cy=y-Math.sin(a)*(rad+bh/2), b=box(cx,cy); if(!inside(b)) continue; const h=hit(b); const sc=h*100+Math.abs(Math.sin(a))*0.5; if(h===0&&sc<cs){cs=sc;cand={cx,cy,b,far:crowd||rad>14};} }
+      if(cand){ best=cand; break; } }
+    if(!best){ const cx=x+pr[0]+bw/2, cy=y+pr[1]; best={cx,cy,b:box(cx,cy),far:false}; }
+    if(!reserved[p.id]) obs.push([best.b[0]-2,best.b[1]-1,best.b[2]+2,best.b[3]+1,5]);
+    if(best.far){ // 지시선: 점 → 라벨 박스 가장 가까운 지점
+      const ex=Math.max(best.b[0],Math.min(x,best.b[2])), ey=Math.max(best.b[1],Math.min(y,best.b[3]));
+      leads+=`<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="${p.c}" stroke-width="0.7" opacity="0.75"/>`; }
+    dots+=`<circle cx="${x}" cy="${y}" r="${p.id==='R'?5:3.6}" fill="${p.id==='R'?'#fff':p.c}" stroke="${p.c}" stroke-width="1.6"/>`;
+    labs+=`<text x="${best.cx.toFixed(1)}" y="${(best.cy+4).toFixed(1)}" text-anchor="middle" class="pl" fill="${p.c}" paint-order="stroke" stroke="#fff" stroke-width="3">${p.id}</text>`; });
+  g+=leads+dots+labs;
   const mk=c=>`<marker id="${uid}_${c.slice(1)}" viewBox="0 0 10 10" refX="10" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`;
   return `<svg viewBox="0 0 ${W} ${H}" class="psy" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="습공기 선도">
     <defs>${mk(r)}${mk(bl)}${mk('#16202b')}</defs>
@@ -1476,7 +1541,7 @@ function buildReport(){
     ['2-4. ROOM LOAD CALCULATION',1,3],['2-5. AIR VOLUME (C.A / S.A / BFU / HFB)',1,4],['2-6. AHU SUMMARY',1,4],
     ['3. AHU CALCULATION & EQUIPMENT SCHEDULE',0,5],['3-1. PRE-COOLING COIL',1,5],['3-2. RE-COOLING COIL',1,5],['3-3. HEATING COIL',1,5],['3-4. HUMIDIFICATION',1,5],
     ['3-5. AIR FLOW DIAGRAM (공조 풍량 배분)',1,6],['3-6. PSYCHROMETRIC CHART (습공기 선도)',1,7],['3-7. AHU CAPACITY — 전체 / 대당',1,8],['3-8. EQUIPMENT SELECTION',1,9],['3-9. H.V.A.C EQUIPMENT SCHEDULE',1,9],
-    ...(R.oac?[['4. OAC CALCULATION',0,10],['4-1 ~ 4-4. GIVEN DATA · O.A VOLUME · COOLING COIL · SELECTION',1,10]]:[]),
+    ...(R.oac?[['4. OAC CALCULATION',0,10],['4-1 ~ 4-4. GIVEN DATA · O.A VOLUME · UNIT DIVISION · COOLING COIL · SELECTION',1,10]]:[]),
   ];
   pages.push(`<div class="page cover"><div class="pg-head"><span>${LOGO_HTML}${esc(S.project)}${S.zone?` · ${esc(S.zone)}`:''}</span><span>${esc(S.rev)}</span></div>
     <div class="ttl"><div class="b">HVAC HEAT LOAD CALCULATION</div><div class="c">&lt; HVAC DESIGN FOR BASIC &gt;</div></div>
@@ -1674,7 +1739,15 @@ ${sp(A.sa)} CMH × 1.2 × (${sp(A.lh,6)} − ${sp(A.eh,6)}) = ${sp(A.humRaw,1)} 
    ${O.list.map(x=>`<tr>${td(x.tag,0,'c')}${td(x.qty)}${td(x.oaPer)}${td(x.oaTot)}${td(x.src==='this'?'2-2 (this calculation)':x.src==='file'?x.file:'manual input',0,'c')}</tr>`).join('')}
    <tr class="tot"><td>TOTAL</td><td></td><td></td><td class="n hl">${fmt(O.oaSum)}</td><td></td></tr></table>
   <div class="eq">OAC S.A = O.A = ${fmt(O.oaSum)} CMH ÷ ${O.n} EA = ${fmt(O.oaSum/O.n)} → <b>${fmt(O.sa)} CMH</b> (ROUNDUP 1,000 · 100% outside air)</div>
-  <h3>4-3. COOLING COIL${O.twoCoil?' (PRE + RE)':' (1 COIL)'}</h3>
+  <div class="eq">UNIT DIVISION : Σ O.A ${fmt(O.oaSum)} CMH ÷ ${fmt(O.maxSa)} CMH (company max S.A per unit) = ${fmt(O.oaSum/O.maxSa,2)} → recommended <b>${O.rec} EA or more</b> · applied <b>${O.n} EA</b> (${fmt(O.sa)} CMH/unit, ${O.over?'<span style="color:#b42318">exceeds max</span>':'within standard'})</div>
+  <table class="rt"><tr><th style="width:24%">ITEM</th><th>WHOLE (as 1 unit)</th><th>PER UNIT (1대)</th><th>TOTAL (× ${O.n})</th></tr>
+   <tr>${td('SUPPLY AIR (CMH)',0,'c')}${td(O.all.sa)}<td class="n hl">${fmt(O.sa)}</td>${td(O.tot.sa)}</tr>
+   <tr>${td('PRE COOLING (kcal/h)',0,'c')}${td(O.all.pre)}${td(O.pre)}${td(O.tot.pre)}</tr>
+   <tr>${td('RE COOLING (kcal/h)',0,'c')}${td(O.all.re)}${td(O.re)}${td(O.tot.re)}</tr>
+   <tr>${td('COOLING TOTAL (kcal/h)',0,'c')}${td(O.all.cool)}<td class="n hl">${fmt(O.cool)}</td>${td(O.tot.cool)}</tr>
+   <tr>${td('Q / L × 1000',0,'c')}${td(fmt(O.all.coilIdx,2),0,'c')}<td class="n hl">${fmt(O.coilIdx,2)}</td>${td('',0,'')}</tr>
+   <tr>${td('COIL TYPE',0,'c')}${td(O.all.twoCoil?'PRE + RE':'1 COIL',0,'c')}<td class="c hl">${O.twoCoil?'PRE + RE':'1 COIL'}</td>${td('judged per unit',0,'c')}</tr></table>
+  <h3>4-3. COOLING COIL — PER UNIT${O.twoCoil?' (PRE + RE)':' (1 COIL)'}</h3>
   <div class="eq">E.E = ${fmt(O.ee,3)} kcal/kg (outdoor ${O.S.db}℃)      L.E = ${fmt(O.le,3)} kcal/kg (OAC supply ${fmt(O.Sin.db,1)}℃)      MID = (E.E + L.E) ÷ 2 = ${fmt(O.mid,3)} kcal/kg
 PRE : ${fmt(O.sa)} CMH × 1.2 × (${fmt(O.ee,3)} − ${fmt(O.mid,3)}) = ${fmt(O.preRaw)} kcal/h × ${S.coolSF} = <b>${fmt(O.pre)} kcal/h</b>
 RE  : ${fmt(O.sa)} CMH × 1.2 × (${fmt(O.mid,3)} − ${fmt(O.le,3)}) = ${fmt(O.reRaw)} kcal/h × ${S.coolSF} = <b>${fmt(O.re)} kcal/h</b>
