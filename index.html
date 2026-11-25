@@ -127,6 +127,9 @@ input.req:placeholder-shown{border-color:var(--warn);background:var(--reqbg)}
 .chtabs button{border:0;background:none;padding:9px 12px;font-weight:600;font-size:12.5px;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px}
 .chtabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
 .psy{width:100%;height:auto;display:block}
+.psy2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(460px,100%),1fr));gap:12px}.psy2 figure{margin:0}
+.psycap{font-size:11.5px;line-height:1.6;margin-top:4px;color:var(--ink)}.psycap span{white-space:nowrap}
+.page .psy2{grid-template-columns:1fr;gap:4px}.page .psycap{font-size:9px;line-height:1.35;margin:1px 0 2px}.page .psycap span{white-space:normal}
 .psyt td{padding:3px 8px}
 .row-x{border:0;background:none;color:var(--bad);font-size:15px;padding:0 6px}
 .addrow{margin:0 14px 12px}
@@ -145,6 +148,28 @@ input.req:placeholder-shown{border-color:var(--warn);background:var(--reqbg)}
 .rtab td input.ra:placeholder-shown{background:var(--autobg)}.rtab td input.ra::placeholder{color:var(--muted);opacity:1}.rtab td input.ra:not(:placeholder-shown){color:var(--warn);font-weight:600}
 .rtab td input.dis{opacity:.35}.rtab td.ro{background:var(--autobg);font-weight:700;color:var(--blue);padding:2px 6px}
 .rtab .stk{position:sticky;left:0;z-index:2;background:var(--sheet)}.rtab .stk2 input{font-weight:600}.rtab .stk2{left:62px;box-shadow:2px 0 0 var(--rule)}.rtab td.act{min-width:62px;max-width:62px}.rtab td.act{white-space:nowrap;padding:0 4px;text-align:center}.rtab td.act b{font-family:var(--f-num);margin-right:2px}
+/* rooms as wrapping cards (no horizontal scroll) */
+.rcards{display:flex;flex-direction:column;gap:10px;padding:12px 14px 8px}
+.rcard{border:1px solid var(--rule);border-radius:6px;background:var(--sheet);overflow:hidden}
+.rcard-h{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--th);border-bottom:1px solid var(--rule)}
+.rcard-h .rno{font-family:var(--f-num);font-weight:700;color:var(--accent);min-width:20px}
+.rcard-h input{max-width:300px;font-weight:600;height:28px}
+.rcard-h .sp{flex:1}
+.rgrp{display:grid;grid-template-columns:96px minmax(0,1fr);border-bottom:1px dashed var(--rule)}
+.rgrp:last-child{border-bottom:0}
+.rgrp>b{font-size:11.5px;color:var(--accent);padding:9px 10px;background:var(--soft);border-right:1px solid var(--rule)}
+.rflds{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px 8px;padding:6px 10px 8px}
+.rf{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rf.w2{grid-column:span 2}
+.rf label{font-size:11px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rf label small{font-weight:400;color:var(--muted);margin-left:3px;font-size:10px}
+.rf.au label{color:var(--muted)}
+.rf input,.rf select{height:27px;padding:3px 5px;font-size:12px}
+.rf .ro{height:27px;display:flex;align-items:center;justify-content:flex-end;gap:4px;padding:0 6px;border-radius:3px;background:var(--autobg);border:1px solid var(--rule);font-family:var(--f-num);font-weight:700;color:var(--blue);font-size:12px;white-space:nowrap;overflow:hidden}
+.rcard input.ra:placeholder-shown{background:var(--autobg)}.rcard input.ra::placeholder{color:var(--muted);opacity:1}.rcard input.ra:not(:placeholder-shown){color:var(--warn);font-weight:600}
+.rcard input.dis{opacity:.35}
+.rcard input.kwreq{border:1px solid var(--warn)!important;background:var(--reqbg)!important}
+@media (max-width:700px){.rgrp{grid-template-columns:minmax(0,1fr)}.rgrp>b{border-right:0;border-bottom:1px solid var(--rule);padding:5px 10px}.rflds{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}.rf.w2{grid-column:auto}}
 .row-b{border:0;background:none;color:var(--muted);font-size:13px;padding:0 3px}.row-b:hover{color:var(--accent)}
 .rbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:0 14px 8px}
 .rres{font-size:11.5px}.rres th{font-size:10.5px;line-height:1.2;white-space:nowrap}.rres th small{display:block;font-weight:400;color:var(--muted)}.rres td{padding:3px 6px!important;white-space:nowrap}
@@ -771,7 +796,7 @@ function normState(o){
   const m = migrateState(clone(o||{}));
   const n = Object.assign(clone(DEFAULTS), m);
   n.rooms = (n.rooms&&n.rooms.length?n.rooms:[defaultRoom(1)]).map((r,i)=>{ const d=defaultRoom(i+1); return Object.assign(d, r, {id:r.id||d.id}); });
-  const ids=n.rooms.map(r=>r.id); n.equip=(n.equip||[]).map(e=>({...e, room: ids.includes(e.room)?e.room:ids[0]}));
+  n.equip=[];   // 공정 장비 목록(2-1B) 삭제 — 공정부하는 룸 입력(POWER kW·PCW·배기·부하율)으로만 산정
   return n;
 }
 let S = clone(DEFAULTS);
@@ -800,7 +825,6 @@ const SECTIONS = [
  ]},
  {no:'2-1', title:'외기 및 설계 조건', hint:'회사 표준 고정값 · 설계조건 추가 가능', open:true, cond:true},
  {no:'1-1', title:'실(ROOM) 사양 · 룸별 입력', hint:'룸 1개 = 1줄 · 룸 추가 시 같은 방법으로 계산 후 합산', open:true, rooms:true},
- {no:'2-1B', title:'공정 장비 목록 (선택)', hint:'공정부하 "알 때" 룸에 장비별 상세 입력 시', open:false, equip:true},
  {no:'AHU', title:'AHU 설계 조건', hint:'안전율 · 냉방열원 · 히팅/가습 사용', open:true, fields:AHU_FIELDS},
 ];
 // room table columns: [key, header, unit, type, width, opts]
@@ -835,6 +859,19 @@ function roomCell(r,i,[k,h,u,t,w,o={}]){
   if(t==='out') return `<td class="n ro" id="ro_${i}_${k}" style="min-width:${w}px"></td>`;
   return '<td></td>';
 }
+// card field: label above control; same data-rm / data-f / ids as the table cells so update() works unchanged
+function roomField(r,i,[k,h,u,t,w,o={}]){
+  const v=r[k]??'', a=`data-rm="${i}" data-f="${k}" aria-label="${esc(h)}"`;
+  let ctl='';
+  if(t==='text') ctl=`<input ${a} value="${esc(v)}">`;
+  else if(t==='num') ctl=`<input ${a} type="number" step="any" value="${v===''||v==null?'':v}"${o.req?' class="req" placeholder="입력"':''}>`;
+  else if(t==='auto') ctl=`<input ${a} type="number" step="any" class="ra" id="ra_${i}_${k}" value="${v===''||v==null?'':v}">`;
+  else if(t==='sel') ctl=`<select ${a}>${o.opts().map(([x,y])=>`<option value="${x}"${String(x)===String(v)?' selected':''}>${y}</option>`).join('')}</select>`;
+  else if(t==='cond') ctl=`<select ${a}>${allRoomConds(S).map(c=>`<option value="${esc(c.id)}"${c.id===v?' selected':''}>${esc(c.name)} (${c.db}℃/${c.rh}%)</option>`).join('')}</select>`;
+  else if(t==='out') ctl=`<div class="ro" id="ro_${i}_${k}"></div>`;
+  const wide = w>=100 || k==='_dens';
+  return `<div class="rf${wide?' w2':''}${t==='auto'?' au':''}"><label title="${esc(h)}${u?' ('+esc(u)+')':''}">${h}${u?`<small>${u}</small>`:''}</label>${ctl}</div>`;
+}
 function roomsHTML(){
   const cols=RCOLS.flatMap(g=>g.c);
   const head1=`<tr><th class="stk" rowspan="2" style="min-width:62px">#</th>${RCOLS.map(g=>`<th colspan="${g.c.length}" class="grp">${g.g}</th>`).join('')}</tr>`;
@@ -843,9 +880,14 @@ function roomsHTML(){
   const modes=S.rooms.map(r=>r.procMode==='power'?'power':'density'), allD=modes.every(m=>m==='density'), allP=modes.every(m=>m==='power');
   const seg=`<div class="procseg"><span class="sb-l">공정부하 산정</span><div class="seg" role="group" aria-label="공정부하 산정 방식">
     <button type="button" data-pmodeall="density" aria-pressed="${allD}"><b>공정부하를 모를 때 · 면적당 부하 기준</b><small>목표 부하밀도(클린룸 150~200 / 일반룸 약 100)에서 A/C 부하·kW 역산 · PCW·공정배기 제거열 반영 · kW 임의 입력도 가능</small></button>
-    <button type="button" data-pmodeall="power" aria-pressed="${allP}"><b>공정부하를 알 때 · 장비 전력 입력</b><small>생산설비 전기용량 kW − PCW 제거열 − 공정배기 제거열 → × 부하율 (2-1B 장비 목록도 합산)</small></button></div>
+    <button type="button" data-pmodeall="power" aria-pressed="${allP}"><b>공정부하를 알 때 · 장비 전력 입력</b><small>생산설비 전기용량 kW − PCW 제거열 − 공정배기 제거열 → × 부하율 </small></button></div>
     ${!allD&&!allP?'<span class="pill w">룸별 혼합 적용</span>':''}<span class="u" style="font-size:11.5px">버튼 = 전체 룸 일괄 적용 · 룸별로는 표의 "공정부하" 칸에서 선택</span></div>`;
-  return seg+`<div class="scroll rwrap"><table class="tbl-in rtab"><thead>${head1}${head2}</thead><tbody>${rows}</tbody></table></div>
+  const cards=S.rooms.map((r,i)=>`<div class="rcard">
+    <div class="rcard-h"><span class="rno">${i+1}</span><input data-rm="${i}" data-f="name" value="${esc(r.name)}" aria-label="실명" title="실명"><span class="sp"></span>
+      <button class="row-b" data-cprm="${i}" title="룸 복사" aria-label="룸 복사">⧉ 룸 복사</button><button class="row-x" data-delrm="${i}" title="룸 삭제" aria-label="룸 삭제">×</button></div>
+    ${RCOLS.map(g=>{ const cs=g.c.filter(c=>c[0]!=='name'); return `<div class="rgrp"><b>${g.g}</b><div class="rflds">${cs.map(c=>roomField(r,i,c)).join('')}</div></div>`; }).join('')}
+  </div>`).join('');
+  return seg+`<div class="rcards">${cards}</div>
     <div class="rbar"><button class="btn" id="addRoom">+ 룸 추가</button>
       <span class="u">회색 칸 = 당사 표준 자동값 (숫자를 입력하면 직접 입력값, 지우면 자동으로 복귀) · 룸마다 같은 방법으로 계산 후 공조기(ZONE) 합계로 합산</span></div>
     <div class="lbl" style="margin:4px 14px 6px">룸별 계산 결과</div>
@@ -961,7 +1003,6 @@ function onInput(e){
     if(e.type==='change'){
       if(f==='cleanClass' && v==='GR' && r.roomType!=='GR'){ r.roomType='GR'; const s=document.querySelector(`[data-rm="${t.dataset.rm}"][data-f="roomType"]`); if(s) s.value='GR'; }
       if(f==='name'){ rebuild(); return; }
-      if(f==='procMode' && v==='power' && !S.equip.some(q=>q.room===r.id)) toast(`${r.name}: 공정 장비 목록(2-1B)에 이 룸의 장비를 추가하세요.`);
     }
   } else if(t.dataset.k){
     if(t.readOnly) return;
@@ -1135,7 +1176,7 @@ function update(){
   R.rooms.forEach((rr,i)=>{ const r=S.rooms[i];
     AUTO_KEYS.forEach(k=>{ const el=$(`ra_${i}_${k}`); if(!el) return; delete el.dataset.koplaceholder; delete el.dataset.kotitle; const av=roomAuto(r,k,S); el.placeholder=fmt(av, Number.isInteger(av)?0:2); el.title=`자동: ${AUTO_BASIS[k](r)}`; });
     const calcAuto={bfuQty:[rr.bfu.auto,0], fanLoad:[rr.bfu.fanCalc,1], hfbQty:[rr.bfu.hfb,0], densityKw: rr.procDensity?[rr.procDensity.kwAuto,1]:[0,1]};
-    for(const k in calcAuto){ const el=$(`ra_${i}_${k}`); if(!el) continue; delete el.dataset.koplaceholder; delete el.dataset.kotitle; el.placeholder=fmt(...calcAuto[k]); el.title=k==='densityKw'&&r.procMode==='power'?'공정부하를 알 때: 생산설비 전기용량 kW 입력 (2-1B 장비 목록 행이 있으면 합산)':`자동: ${AUTO_BASIS[k](r)}`; if(k==='densityKw'&&r.procMode==='power') el.placeholder='kW 입력'; }
+    for(const k in calcAuto){ const el=$(`ra_${i}_${k}`); if(!el) continue; delete el.dataset.koplaceholder; delete el.dataset.kotitle; el.placeholder=fmt(...calcAuto[k]); el.title=k==='densityKw'&&r.procMode==='power'?'공정부하를 알 때: 생산설비 전기용량 kW 입력':`자동: ${AUTO_BASIS[k](r)}`; if(k==='densityKw'&&r.procMode==='power') el.placeholder='kW 입력'; }
     const pw=r.procMode==='power';
     ['targetDensity'].forEach(k=>{ const el=document.querySelector(`[data-rm="${i}"][data-f="${k}"]`); if(el){ el.disabled=pw; el.classList.toggle('dis',pw); } });
 
@@ -1413,100 +1454,113 @@ function psyPoints(){
   return pts;
 }
 let PSY_N=0;
-function psychroSVG(){
-  const uid='p'+(++PSY_N);
-  const P=DESIGN_CONDITIONS.pressure, pts=psyPoints(), by=Object.fromEntries(pts.map(p=>[p.id,p]));
-  const W=760,H=480,ml=46,mr=58,mt=28,mb=40, t0=0,t1=45, w0=0,w1=0.030;
-  const X=t=>ml+(t-t0)/(t1-t0)*(W-ml-mr), Y=w=>H-mb-(w-w0)/(w1-w0)*(H-mt-mb);
-  const wsat=t=>absHum(t,100,P);
-  const poly=(f,step=0.5,ta=t0,tb=t1)=>{ let d='',on=false; for(let t=ta;t<=tb+1e-9;t+=step){ const w=f(t); if(w==null||w>w1||w<w0){on=false;continue;} d+=(on?'L':'M')+X(t).toFixed(1)+','+Y(w).toFixed(1); on=true; } return d; };
+// 습공기 선도 — 하절기 / 동절기를 각각 별도 선도로, 각 계절의 상태점 범위로 자동 확대
+function psyChart(season, forReport){
+  const uid='p'+(++PSY_N), P=DESIGN_CONDITIONS.pressure, A=R.ahu;
+  const by=Object.fromEntries(psyPoints().map(p=>[p.id,p])), sum=season==='S';
+  const pts=(sum?['S0','S1','S2','S3','S4','R']:['W1','W2','W3','W4','R']).map(i=>by[i]).filter(Boolean);
+  const C=sum?'#c0262d':'#1d5fa8', K='#16202b', G='#6b7785';
+  const W=760, H=forReport?318:430, ml=46, mr=66, mt=40, mb=36, pw=W-ml-mr, ph=H-mt-mb;
+  let ta=Math.floor(Math.min(...pts.map(p=>p.t))-1.5), tb=Math.ceil(Math.max(...pts.map(p=>p.t))+1.5); if(tb-ta<12) tb=ta+12;
+  let wa=Math.max(0,Math.floor((Math.min(...pts.map(p=>p.w))-0.0016)*2000)/2000), wb=Math.ceil((Math.max(...pts.map(p=>p.w))+0.001)*2000)/2000;
+  if(wb-wa<0.004){ const c=(wa+wb)/2; wa=Math.max(0,Math.floor((c-0.002)*2000)/2000); wb=wa+0.004; }
+  const X=t=>ml+(t-ta)/(tb-ta)*pw, Y=w=>mt+ph-(w-wa)/(wb-wa)*ph, wsat=t=>absHum(t,100,P);
+  const path=f=>{ let d='',on=false; for(let i=0;i<=(tb-ta)*5;i++){ const t=ta+i/5, w=f(t); if(w==null){on=false;continue;} d+=(on?'L':'M')+X(t).toFixed(1)+','+Y(w).toFixed(1); on=true; } return d; };
   let g='';
   // grid
-  for(let t=t0;t<=t1;t+=5) g+=`<line x1="${X(t)}" y1="${Y(w0)}" x2="${X(t)}" y2="${Math.max(Y(Math.min(wsat(t),w1)),mt)}" stroke="#e3e8ee"/><text x="${X(t)}" y="${H-mb+14}" text-anchor="middle" class="ax">${t}</text>`;
-  for(let w=0;w<=w1+1e-9;w+=0.005) g+=`<line x1="${X(t0)}" y1="${Y(w)}" x2="${X(t1)}" y2="${Y(w)}" stroke="#e3e8ee"/><text x="${W-mr+6}" y="${Y(w)+3}" class="ax">${w.toFixed(3)}</text>`;
+  for(let t=ta;t<=tb;t++){ const maj=t%5===0; g+=`<line x1="${X(t)}" y1="${mt}" x2="${X(t)}" y2="${mt+ph}" stroke="${maj?'#d9e0e7':'#eef2f5'}"/>`; if(maj) g+=`<text x="${X(t)}" y="${mt+ph+14}" text-anchor="middle" class="ax">${t}</text>`; }
+  const ws=(wb-wa)<=0.008?0.001:(wb-wa)<=0.024?0.002:0.005;
+  for(let k=Math.ceil(wa/ws-1e-6);k*ws<=wb+1e-9;k++){ const w=k*ws; g+=`<line x1="${ml}" y1="${Y(w)}" x2="${ml+pw}" y2="${Y(w)}" stroke="#d9e0e7"/><text x="${ml+pw+5}" y="${Y(w)+3}" class="ax">${w.toFixed(3)}</text>`; }
+  // region above saturation
+  let curves=`<path d="${path(wsat)}L${X(tb)},${mt-60}L${X(ta)},${mt-60}Z" fill="#eef1f4"/>`;
   // enthalpy lines
-  for(let h=5;h<=30;h+=5){ const f=t=>{ const w=(h*4.186-1.005*t)/(2500+1.84*t); return (w>=0&&w<=wsat(t))?w:null; }; const d=poly(f,0.25); if(d){ g+=`<path d="${d}" fill="none" stroke="#c9d6e3" stroke-dasharray="2 3"/>`;
-    let tl=t0; for(let t=t0;t<=t1;t+=0.1){ const w=f(t); if(w!=null){ tl=t; break; } } const wl=f(tl); if(wl!=null && wl<w1) g+=`<text x="${X(tl)-4}" y="${Y(wl)-3}" text-anchor="end" class="hl">${h}</text>`; } }
-  // RH lines
-  for(let rh=10;rh<100;rh+=10){ g+=`<path d="${poly(t=>absHum(t,rh,P))}" fill="none" stroke="#b9c4cf" stroke-width="0.8"/>`;
-    let tl=t1; while(tl>t0 && absHum(tl,rh,P)>w1) tl-=0.5; g+=`<text x="${X(tl)-2}" y="${Y(absHum(tl,rh,P))-3}" text-anchor="end" class="rl">${rh}%</text>`; }
-  g+=`<path d="${poly(wsat,0.25)}" fill="none" stroke="#16202b" stroke-width="1.6"/>`;
+  const h0=enth(ta,wa), h1=enth(tb,Math.min(wb,wsat(tb))), hs=(h1-h0)>24?5:(h1-h0)>10?2:1;
+  for(let h=Math.ceil(h0/hs)*hs;h<=h1;h+=hs){ const f=t=>{ const w=(h*4.186-1.005*t)/(2500+1.84*t); return (w<=wsat(t))?w:null; };
+    curves+=`<path d="${path(f)}" fill="none" stroke="#b7c8da" stroke-dasharray="3 3"/>`;
+    // label: where the line leaves the saturation curve; if it enters from the top edge, label at its lower end instead (keeps clear of RH labels)
+    let t0=null; for(let i=0;i<=(tb-ta)*10;i++){ const t=ta+i/10, w=f(t); if(w!=null&&w<=wb&&w>=wa){ t0=t; break; } }
+    if(t0==null) continue;
+    if(f(t0)<wb-(wb-wa)*0.03) g+=`<text x="${X(t0)+3}" y="${Y(f(t0))-3}" class="hl">h${h}</text>`;
+    else { let t1=null; for(let i=(tb-ta)*10;i>=0;i--){ const t=ta+i/10, w=f(t); if(w!=null&&w>=wa&&w<=wb){ t1=t; break; } }
+      if(t1!=null&&X(t1)<ml+pw-24) g+=`<text x="${X(t1)-3}" y="${Math.min(Y(f(t1))-3,mt+ph-3)}" text-anchor="end" class="hl">h${h}</text>`; } }
+  // RH curves
+  for(let rh=10;rh<100;rh+=10){ if(absHum(tb,rh,P)<wa) continue; curves+=`<path d="${path(t=>absHum(t,rh,P))}" fill="none" stroke="#c3ccd5" stroke-width="0.9"/>`;
+    let t=tb; while(t>ta&&absHum(t,rh,P)>wb) t-=0.1; const w=absHum(t,rh,P); if(w>=wa) g+=`<text x="${X(t)-3}" y="${t<tb?mt+10:Y(w)-3}" text-anchor="end" class="rl">${rh}%</text>`; }
+  curves+=`<path d="${path(wsat)}" fill="none" stroke="${K}" stroke-width="1.8"/>`;
   // processes
-  const ln=(a,b,c,dash,arrow)=>`<line x1="${X(a.t)}" y1="${Y(a.w)}" x2="${X(b.t)}" y2="${Y(b.w)}" stroke="${c}" stroke-width="${dash?1.2:2}" ${dash?`stroke-dasharray="${dash}"`:''} ${arrow?`marker-end="url(#${uid}_${c.slice(1)})"`:''}/>`;
-  const r='#b3261e', bl='#1d5fa8';
-  if(by.S0) g+=ln(by.S0,by.S1,r,0,1);
-  g+=ln(by.S1,by.S2,r,'5 3')+ln(by.R,by.S2,r,'5 3')+ln(by.S2,by.S3,r,0,1)+(by.S4.t>by.S3.t+0.05?ln(by.S3,by.S4,r,0,1):'')+ln(by.S4,by.R,r,'1.5 3',1);
-  g+=ln(by.W1,by.W2,bl,'5 3')+ln(by.R,by.W2,bl,'5 3')+ln(by.W2,by.W3,bl,0,1)+ln(by.W3,by.W4,bl,0,1)+ln(by.W4,by.R,bl,'1.5 3',1);
-  // points + labels (자동 배치: 겹치면 빈 곳으로 옮기고 얇은 지시선 연결)
-  const segs=[]; const seg=(a,b)=>{ if(a&&b) segs.push([X(a.t),Y(a.w),X(b.t),Y(b.w)]); };
-  if(by.S0) seg(by.S0,by.S1); seg(by.S1,by.S2); seg(by.R,by.S2); seg(by.S2,by.S3); seg(by.S3,by.S4); seg(by.S4,by.R);
-  seg(by.W1,by.W2); seg(by.R,by.W2); seg(by.W2,by.W3); seg(by.W3,by.W4); seg(by.W4,by.R);
-  const obs=[]; // [x0,y0,x1,y1]
-  pts.forEach(p=>{ const x=X(p.t),y=Y(p.w),r=p.id==='R'?6:5; obs.push([x-r,y-r,x+r,y+r,2]); });
-  segs.forEach(([x0,y0,x1,y1])=>{ const L=Math.hypot(x1-x0,y1-y0), n=Math.max(1,Math.ceil(L/5)); for(let i=0;i<=n;i++){ const x=x0+(x1-x0)*i/n, y=y0+(y1-y0)*i/n; obs.push([x-1.5,y-1.5,x+1.5,y+1.5,1]); } });
-  // 범례 영역
-  obs.push([ml,mt,ml+330,mt+50,5]);
-  const hit=(b)=>obs.reduce((s,o)=>s+((b[0]<o[2]&&b[2]>o[0]&&b[1]<o[3]&&b[3]>o[1])?o[4]:0),0);
-  const pref={S0:[8,-6],S1:[-8,-6],S2:[-8,12],S3:[-8,-7],S4:[0,-9],R:[0,-10],W1:[-8,4],W2:[6,-8],W3:[8,4],W4:[8,-4]};
-  const dirs=[]; for(let k=0;k<16;k++) dirs.push(k*Math.PI/8);
-  let labs='', leads='', dots='';
-  // 몰려 있는 점 → 오른쪽 빈 공간에 라벨을 세로로 정렬하고 얇은 지시선(꺾은선)으로 연결
-  const isCrowd=p=>pts.some(q=>q!==p && Math.hypot(X(q.t)-X(p.t),Y(q.w)-Y(p.w))<24);
-  const crowdPts=pts.filter(isCrowd), placed=new Set(), reserved={};
-  // 겹치지 않는 점의 기본 라벨 자리는 먼저 확보
-  pts.filter(p=>!isCrowd(p)).forEach(p=>{ const x=X(p.t),y=Y(p.w), bw=p.id.length*7.6+4, bh=13, pr=pref[p.id]||[8,-6];
-    const cx=x+pr[0]+(pr[0]>0?bw/2:pr[0]<0?-bw/2:0), cy=y+pr[1]-3, bx=[cx-bw/2,cy-bh/2,cx+bw/2,cy+bh/2];
-    if(bx[0]>ml+2&&bx[2]<W-mr-2&&bx[1]>mt+2&&bx[3]<H-mb-2&&hit(bx)===0){ reserved[p.id]={cx,cy,b:bx,far:false}; obs.push([bx[0]-2,bx[1]-1,bx[2]+2,bx[3]+1,5]); } });
-  if(crowdPts.length){
-    let groups=crowdPts.map(p=>[p]); const near=(g1,g2)=>g1.some(a=>g2.some(q=>Math.hypot(X(q.t)-X(a.t),Y(q.w)-Y(a.w))<70));
-    for(let merged=true;merged;){ merged=false; for(let i=0;i<groups.length&&!merged;i++) for(let j=i+1;j<groups.length;j++) if(near(groups[i],groups[j])){ groups[i]=groups[i].concat(groups[j]); groups.splice(j,1); merged=true; break; } }
-    groups.forEach(gp=>{ gp.sort((a,b)=>Y(a.w)-Y(b.w)); const lh=16, n=gp.length;
-      const cy0=gp.reduce((s,p)=>s+Y(p.w),0)/n, maxX=Math.max(...gp.map(p=>X(p.t)));
-      let ys=gp.map((p,i)=>cy0+(i-(n-1)/2)*lh);
-      ys=ys.map(v=>Math.min(Math.max(v,mt+10),H-mb-10));
-      let colX=maxX+46, ok=false;
-      for(let tr=0;tr<12&&!ok;tr++,colX+=12){ ok=gp.every((p,i)=>{ const bw=p.id.length*7.6+4; return colX+bw<W-mr-2 && hit([colX,ys[i]-7,colX+bw,ys[i]+7])===0; }); }
-      if(!ok) colX=maxX+46;
-      gp.forEach((p,i)=>{ const x=X(p.t),y=Y(p.w), bw=p.id.length*7.6+4, ly=ys[i], ex=colX-3, kx=colX-14;
-        obs.push([colX-2,ly-8,colX+bw+2,ly+8,5]);
-        leads+=`<polyline points="${x.toFixed(1)},${y.toFixed(1)} ${kx.toFixed(1)},${ly.toFixed(1)} ${ex.toFixed(1)},${ly.toFixed(1)}" fill="none" stroke="${p.c}" stroke-width="0.7" opacity="0.8"/>`;
-        dots+=`<circle cx="${x}" cy="${y}" r="${p.id==='R'?5:3.6}" fill="${p.id==='R'?'#fff':p.c}" stroke="${p.c}" stroke-width="1.6"/>`;
-        labs+=`<text x="${colX.toFixed(1)}" y="${(ly+4).toFixed(1)}" class="pl" fill="${p.c}" paint-order="stroke" stroke="#fff" stroke-width="3">${p.id}</text>`;
-        placed.add(p.id); }); });
+  const mixId=sum?'S2':'W2', oaId=sum?'S1':'W1', steps=[];
+  if(sum){
+    if(by.S0) steps.push({a:by.S0,b:by.S1,lb:tl('OAC 냉각·제습','OAC cooling · dehum.','OAC làm lạnh · tách ẩm')});
+    steps.push({a:by.S2,b:by.S3,lb:A.twoCoil?tl('냉각·제습 (Pre + Re 코일)','Cooling · dehum. (Pre + Re coil)','Làm lạnh · tách ẩm (Pre + Re)'):tl('냉각·제습','Cooling · dehum.','Làm lạnh · tách ẩm')});
+    steps.push({a:by.S3,b:by.S4,lb:tl('재열','Re-heat','Gia nhiệt lại'),off:Math.abs(Y(by.S2.w)-Y(by.S3.w))<0.35*Math.abs(X(by.S2.t)-X(by.S3.t))?8:0});   // 냉각선과 겹치면 아래로 평행 이동
+    steps.push({a:by.S4,b:by.R,lb:tl('급기 → 실내 (실내 부하)','Supply → room (room load)','Gió cấp → phòng'),room:1});
+  } else {
+    steps.push({a:by.W2,b:by.W3,lb:tl('가열','Heating','Gia nhiệt')});
+    steps.push({a:by.W3,b:by.W4,lb:tl('가습','Humidification','Tạo ẩm')});
+    steps.push({a:by.W4,b:by.R,lb:tl('급기 → 실내','Supply → room','Gió cấp → phòng'),room:1});
   }
-  pts.filter(p=>!placed.has(p.id)).forEach(p=>{ const x=X(p.t),y=Y(p.w), bw=p.id.length*7.6+4, bh=13;
-    const box=(cx,cy)=>[cx-bw/2,cy-bh/2,cx+bw/2,cy+bh/2];
-    const inside=b=>b[0]>ml+2&&b[2]<W-mr-2&&b[1]>mt+2&&b[3]<H-mb-2;
-    const pr=pref[p.id]||[8,-6]; let best=null;
-    const crowd=pts.some(q=>q!==p && Math.hypot(X(q.t)-x,Y(q.w)-y)<24);
-    if(reserved[p.id]) best=reserved[p.id];
-    // 1) 기본 위치 (주변에 다른 점이 몰려 있으면 생략 → 지시선으로 분리)
-    if(!best&&!crowd){ const cx=x+pr[0]+(pr[0]>0?bw/2:pr[0]<0?-bw/2:0), cy=y+pr[1]-3, b=box(cx,cy); if(inside(b)&&hit(b)===0) best={cx,cy,b,far:false}; }
-    // 2) 주변 탐색 (가까운 곳부터) → 멀어지면 지시선
-    if(!best) for(const rad of (crowd?[30,40,52,66,82,100,124,150]:[14,20,28,38,50,64,80,100,124])){ let cand=null,cs=1e9;
-      for(const a of dirs){ const cx=x+Math.cos(a)*(rad+bw/2), cy=y-Math.sin(a)*(rad+bh/2), b=box(cx,cy); if(!inside(b)) continue; const h=hit(b); const sc=h*100+Math.abs(Math.sin(a))*0.5; if(h===0&&sc<cs){cs=sc;cand={cx,cy,b,far:crowd||rad>14};} }
-      if(cand){ best=cand; break; } }
-    if(!best){ const cx=x+pr[0]+bw/2, cy=y+pr[1]; best={cx,cy,b:box(cx,cy),far:false}; }
-    if(!reserved[p.id]) obs.push([best.b[0]-2,best.b[1]-1,best.b[2]+2,best.b[3]+1,5]);
-    if(best.far){ // 지시선: 점 → 라벨 박스 가장 가까운 지점
-      const ex=Math.max(best.b[0],Math.min(x,best.b[2])), ey=Math.max(best.b[1],Math.min(y,best.b[3]));
-      leads+=`<line x1="${x.toFixed(1)}" y1="${y.toFixed(1)}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="${p.c}" stroke-width="0.7" opacity="0.75"/>`; }
-    dots+=`<circle cx="${x}" cy="${y}" r="${p.id==='R'?5:3.6}" fill="${p.id==='R'?'#fff':p.c}" stroke="${p.c}" stroke-width="1.6"/>`;
-    labs+=`<text x="${best.cx.toFixed(1)}" y="${(best.cy+4).toFixed(1)}" text-anchor="middle" class="pl" fill="${p.c}" paint-order="stroke" stroke="#fff" stroke-width="3">${p.id}</text>`; });
-  g+=leads+dots+labs;
-  const mk=c=>`<marker id="${uid}_${c.slice(1)}" viewBox="0 0 10 10" refX="10" refY="5" markerUnits="userSpaceOnUse" markerWidth="9" markerHeight="9" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`;
-  return `<svg viewBox="0 0 ${W} ${H}" class="psy" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="습공기 선도">
-    <defs>${mk(r)}${mk(bl)}${mk('#16202b')}</defs>
-    <style>.psy .ax{font:10px 'IBM Plex Mono',monospace;fill:#5b6876}.psy .rl{font:9px 'IBM Plex Mono',monospace;fill:#8a96a3}.psy .hl{font:9px 'IBM Plex Mono',monospace;fill:#8aa3bd}.psy .pl{font:700 11px 'IBM Plex Sans KR',sans-serif}.psy .tt{font:10.5px 'IBM Plex Sans KR',sans-serif;fill:#5b6876}</style>
-    <rect x="${ml}" y="${mt}" width="${W-ml-mr}" height="${H-mt-mb}" fill="#fff" stroke="#9aa6b2"/>
-    ${g}
-    <text x="${(ml+W-mr)/2}" y="${H-6}" text-anchor="middle" class="tt">건구온도 DB (℃)</text>
-    <text x="${W-4}" y="${mt-10}" text-anchor="end" class="tt">절대습도 (kg/kg')</text>
-    <text x="${ml+6}" y="${mt+14}" class="tt">점선(청회색): 엔탈피 kcal/kg · 곡선: 상대습도 %</text>
-    <g transform="translate(${ml+8},${mt+24})"><line x1="0" y1="0" x2="18" y2="0" stroke="${r}" stroke-width="2"/><text x="24" y="3" class="tt">하절기 (냉각·제습 → 재열)</text>
-      <line x1="0" y1="14" x2="18" y2="14" stroke="${bl}" stroke-width="2"/><text x="24" y="17" class="tt">동절기 (가열 → 가습)</text></g>
-  </svg>`;
+  const live=steps.filter(s=>Math.hypot(X(s.b.t)-X(s.a.t),Y(s.b.w)-Y(s.a.w))>3);
+  const obs=[], seg=[]; const addSeg=(a,b)=>{ const x0=X(a.t),y0=Y(a.w),x1=X(b.t),y1=Y(b.w),L=Math.hypot(x1-x0,y1-y0),n=Math.max(1,Math.ceil(L/4)); for(let i=0;i<=n;i++){ const x=x0+(x1-x0)*i/n,y=y0+(y1-y0)*i/n; obs.push([x-2,y-2,x+2,y+2,1]); } };
+  let lines='';
+  [[by[oaId],by[mixId]],[by.R,by[mixId]]].forEach(([a,b])=>{ lines+=`<line x1="${X(a.t)}" y1="${Y(a.w)}" x2="${X(b.t)}" y2="${Y(b.w)}" stroke="${C}" stroke-width="2" stroke-dasharray="7 4"/>`; addSeg(a,b); });
+  // 외기부하 참고 보조선 (하절기 S1 → S3) — 계산에는 사용하지 않음
+  let oaRef='';
+  if(sum&&by.S1&&by.S3){ const a=by.S1,b=by.S3, x0=X(a.t),y0=Y(a.w),x1=X(b.t),y1=Y(b.w);
+    lines=`<line x1="${x0}" y1="${y0}" x2="${x1}" y2="${y1}" stroke="#8d99a6" stroke-width="1.4" stroke-dasharray="9 3 2 3"/>`+lines; addSeg(a,b);
+    const mx=x0+(x1-x0)*0.42, my=y0+(y1-y0)*0.42, ang=Math.atan2(y1-y0,x1-x0)*180/Math.PI, rot=ang>90||ang<-90?ang+180:ang;
+    oaRef=`<text transform="translate(${mx.toFixed(1)},${(my-5).toFixed(1)}) rotate(${rot.toFixed(1)})" text-anchor="middle" class="tt" fill="#6b7785" paint-order="stroke" stroke="#fff" stroke-width="3">${tl('외기부하 (참고)','O.A load (ref.)','Tải gió tươi (tham khảo)')}</text>`; }
+  const circ='①②③④⑤', nums=[];
+  live.forEach((s,i)=>{ const o=s.off||0, x0=X(s.a.t),y0=Y(s.a.w)+o,x1=X(s.b.t),y1=Y(s.b.w)+o,L=Math.hypot(x1-x0,y1-y0),ux=(x1-x0)/L,uy=(y1-y0)/L;
+    const sa=Math.min(6,L*0.2), sb=Math.min(8,L*0.3), c=s.room?G:C;
+    if(o) lines+=`<line x1="${x0}" y1="${y0-o}" x2="${x0}" y2="${y0}" stroke="${c}" stroke-width="1" stroke-dasharray="2 2"/><line x1="${x1}" y1="${y1-o}" x2="${x1}" y2="${y1}" stroke="${c}" stroke-width="1" stroke-dasharray="2 2"/>`;
+    lines+=`<line x1="${(x0+ux*sa).toFixed(1)}" y1="${(y0+uy*sa).toFixed(1)}" x2="${(x1-ux*sb).toFixed(1)}" y2="${(y1-uy*sb).toFixed(1)}" stroke="${c}" stroke-width="${s.room?1.6:3}" ${s.room?'stroke-dasharray="2 4" stroke-linecap="round"':''} marker-end="url(#${uid}${s.room?'g':'c'})"/>`;
+    addSeg(s.a,s.b);
+    let mx=(x0+x1)/2, my=(y0+y1)/2; const nx=uy, ny=-ux, sgn=o?-1:(ny<=0?1:-1); if(L<40||o){ mx+=nx*sgn*15; my+=ny*sgn*15; }
+    nums.push({x:mx,y:my,c,n:circ[i]}); obs.push([mx-9,my-9,mx+9,my+9,6]); s.no=circ[i]; });
+  // markers
+  const mark=p=>{ const x=X(p.t),y=Y(p.w);
+    if(p.id==='R') return `<path d="M${x},${y-7} L${x+7},${y} L${x},${y+7} L${x-7},${y} Z" fill="#fff" stroke="${K}" stroke-width="2"/>`;
+    if(!sum) return `<rect x="${x-4.5}" y="${y-4.5}" width="9" height="9" fill="${C}" stroke="#fff" stroke-width="1.5"/>`;
+    return `<circle cx="${x}" cy="${y}" r="5" fill="${p.id==='S0'?'#fff':C}" stroke="${p.id==='S0'?C:'#fff'}" stroke-width="${p.id==='S0'?2:1.5}"/>`; };
+  pts.forEach(p=>{ const x=X(p.t),y=Y(p.w); obs.push([x-8,y-8,x+8,y+8,8]); });
+  // badges (자동 배치, 멀리 놓이면 지시선)
+  const hit=b=>obs.reduce((s,o)=>s+((b[0]<o[2]&&b[2]>o[0]&&b[1]<o[3]&&b[3]>o[1])?o[4]:0),0);
+  const inside=b=>b[0]>ml+1&&b[2]<ml+pw-1&&b[1]>mt+1&&b[3]<mt+ph-1;
+  let leads='', badges='';
+  const order=[...pts].sort((a,b)=>(a.id==='R'?-1:0)-(b.id==='R'?-1:0));
+  order.forEach(p=>{ const x=X(p.t),y=Y(p.w), bw=p.id.length*7.4+12, bh=17, col=p.id==='R'?K:C; let best=null,bs=1e9;
+    outer: for(const r of [13,20,30,42,56,72,90,110]){ for(let k=0;k<16;k++){ const ang=Math.PI/2+(k%2?1:-1)*Math.ceil(k/2)*Math.PI/8, rr=r+Math.abs(Math.cos(ang))*bw/2+Math.abs(Math.sin(ang))*bh/2;
+        const cx=x+Math.cos(ang)*rr, cy=y-Math.sin(ang)*rr, b=[cx-bw/2,cy-bh/2,cx+bw/2,cy+bh/2]; if(!inside(b)) continue;
+        const h=hit(b); if(h===0){ best={cx,cy,b,r}; break outer; } if(h+r/10<bs){ bs=h+r/10; best={cx,cy,b,r}; } } }
+    if(!best){ const cx=x+bw/2+8, cy=y-12; best={cx,cy,b:[cx-bw/2,cy-bh/2,cx+bw/2,cy+bh/2],r:0}; }
+    obs.push([best.b[0]-2,best.b[1]-2,best.b[2]+2,best.b[3]+2,8]);
+    if(best.r>13){ const ex=Math.max(best.b[0],Math.min(x,best.b[2])), ey=Math.max(best.b[1],Math.min(y,best.b[3])); leads+=`<line x1="${x}" y1="${y}" x2="${ex.toFixed(1)}" y2="${ey.toFixed(1)}" stroke="${col}" stroke-width="1"/>`; }
+    badges+=`<rect x="${best.b[0].toFixed(1)}" y="${best.b[1].toFixed(1)}" width="${bw.toFixed(1)}" height="${bh}" rx="8.5" fill="${p.id==='R'?'#fff':col}" stroke="${col}" stroke-width="1.5"/><text x="${best.cx.toFixed(1)}" y="${(best.cy+4).toFixed(1)}" text-anchor="middle" class="bd" fill="${p.id==='R'?K:'#fff'}">${p.id}</text>`; });
+  const numsSvg=nums.map(n=>`<circle cx="${n.x.toFixed(1)}" cy="${n.y.toFixed(1)}" r="8.5" fill="#fff" stroke="${n.c}" stroke-width="1.6"/><text x="${n.x.toFixed(1)}" y="${(n.y+4).toFixed(1)}" text-anchor="middle" class="nm" fill="${n.c}">${n.n}</text>`).join('');
+  const mk=(id,c)=>`<marker id="${uid}${id}" viewBox="0 0 10 10" refX="8" refY="5" markerUnits="userSpaceOnUse" markerWidth="13" markerHeight="13" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`;
+  const title=sum?tl('하절기 SUMMER — 냉각·제습 → 재열','SUMMER — cooling · dehum. → re-heat','MÙA HÈ — làm lạnh → gia nhiệt lại'):tl('동절기 WINTER — 가열 → 가습','WINTER — heating → humidification','MÙA ĐÔNG — gia nhiệt → tạo ẩm');
+  const svg=`<svg viewBox="0 0 ${W} ${H}" class="psy" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="${esc(title)}">
+    <defs>${mk('c',C)}${mk('g',G)}<clipPath id="${uid}clip"><rect x="${ml}" y="${mt}" width="${pw}" height="${ph}"/></clipPath></defs>
+    <style>.psy .ax{font:10px 'IBM Plex Mono',monospace;fill:#5b6876}.psy .rl{font:9px 'IBM Plex Mono',monospace;fill:#8a96a3}.psy .hl{font:8.5px 'IBM Plex Mono',monospace;fill:#7f9bb8}.psy .bd{font:700 11px 'IBM Plex Mono',monospace}.psy .nm{font:700 11px 'IBM Plex Sans KR',sans-serif}.psy .tt{font:10px 'IBM Plex Sans KR',sans-serif;fill:#5b6876}.psy .ti{font:700 13px 'IBM Plex Sans KR',sans-serif}</style>
+    <rect width="${W}" height="${H}" fill="#fff"/>
+    <g clip-path="url(#${uid}clip)">${curves}</g>${g}
+    <rect x="${ml}" y="${mt}" width="${pw}" height="${ph}" fill="none" stroke="#9aa6b2"/>
+    <g clip-path="url(#${uid}clip)">${lines}</g>${oaRef}${leads}${numsSvg}${pts.map(mark).join('')}${badges}
+    <text x="${ml}" y="18" class="ti" fill="${C}">${title}</text>
+    <g transform="translate(${ml},30)" class="tt"><line x1="0" y1="-3" x2="22" y2="-3" stroke="${C}" stroke-width="2" stroke-dasharray="7 4"/><text x="27" y="0">${tl('혼합','mixing','hòa trộn')}</text>
+      <line x1="72" y1="-3" x2="96" y2="-3" stroke="${C}" stroke-width="3"/><path d="M96,-8 L105,-3 L96,2 z" fill="${C}"/><text x="110" y="0">${tl('처리 과정','process','quá trình')}</text>
+      <line x1="170" y1="-3" x2="194" y2="-3" stroke="${G}" stroke-width="1.6" stroke-dasharray="2 4" stroke-linecap="round"/><text x="199" y="0">${tl('급기 → 실내','supply → room','cấp → phòng')}</text>
+      <path d="M${286},-9 L${292},-3 L${286},3 L${280},-3 Z" fill="#fff" stroke="${K}" stroke-width="1.6"/><text x="297" y="0">R ${tl('실내','room','phòng')}</text>${sum?`<line x1="345" y1="-3" x2="375" y2="-3" stroke="#8d99a6" stroke-width="1.4" stroke-dasharray="9 3 2 3"/><text x="380" y="0">${tl('외기부하 참고','O.A load ref.','tải gió tươi')}</text>`:''}</g>
+    <text x="${ml+pw}" y="30" text-anchor="end" class="tt">${tl('점선 h = 엔탈피 kcal/kg · 곡선 = 상대습도 %','dashed h = enthalpy kcal/kg · curves = RH %','nét đứt h = enthalpy · đường cong = RH %')}</text>
+    <text x="${ml+pw/2}" y="${H-4}" text-anchor="middle" class="tt">${tl('건구온도 DB (℃)','Dry bulb DB (℃)','Nhiệt độ khô DB (℃)')}</text>
+    <text transform="translate(${W-6},${mt+ph/2}) rotate(-90)" text-anchor="middle" class="tt">${tl('절대습도','Abs. humidity','Độ ẩm tuyệt đối')} (kg/kg')</text></svg>`;
+  const cap=`<div class="psycap"><span style="color:${C};font-weight:700">${by[oaId].id} + R → ${mixId}</span> ${tl('혼합 (외기 + 환기)','mixing (O.A + R.A)','hòa trộn (gió tươi + hồi)')}`
+    + live.map(s=>` · <span><b style="color:${s.room?G:C}">${s.no}</b> ${s.a.id} → ${s.b.id} ${s.lb}</span>`).join('')
+    + (sum&&by.S1&&by.S3?` · <span style="color:#6b7785">${by.S1.id} ⇢ S3 ${tl('외기부하 (참고)','O.A load (ref.)','tải gió tươi (TK)')} = O.A ${fmt(A.oa)} × 1.2 × (${fmt(by.S1.h,2)} − ${fmt(by.S3.h,2)}) = <b>${fmt(A.oa*1.2*(by.S1.h-by.S3.h))} kcal/h</b></span>`:'')
+    + (steps.length>live.length?` · <span style="color:var(--muted)">${steps.filter(s=>!live.includes(s)).map(s=>s.lb).join(', ')} ${tl('없음','none','không có')}</span>`:'')+`</div>`;
+  return `<figure>${svg}${cap}</figure>`;
 }
+function psychroSVG(forReport){ return `<div class="psy2">${psyChart('S',forReport)}${psyChart('W',forReport)}</div>`; }
 function psychroTable(cls){
   const pts=psyPoints();
   return `<table class="${cls}"><thead><tr><th>No.</th><th>상태점</th><th>DB (℃)</th><th>RH (%)</th><th>AH (kg/kg')</th><th>h (kcal/kg)</th></tr></thead><tbody>
@@ -1689,7 +1743,7 @@ ${sp(A.sa)} CMH × 1.2 × (${sp(A.lh,6)} − ${sp(A.eh,6)}) = ${sp(A.humRaw,1)} 
   <p class="note">상태점 번호(S1~S4 하절기 / W1~W4 동절기 / R 실내)는 다음 페이지 습공기 선도의 번호와 같습니다 (공조기 1대 기준).</p>`); }
   pages.push(`<h3>3-6. PSYCHROMETRIC CHART (습공기 선도)</h3>
   <p class="note">${esc(S.ahuTag)} 1대 기준 · S.A ${sp(A.sa)} CMH (O.A ${sp(A.oa)} / R.A ${sp(A.ra)}) · Site pressure ${DESIGN_CONDITIONS.pressureLabel}</p>
-  <div style="margin:4px 0 8px">${psychroSVG()}</div>
+  <div style="margin:4px 0 6px">${psychroSVG(true)}</div>
   ${psychroTable('rt')}
   <p class="note">하절기: S1 외기 + R 환기 → S2 혼합 → (Pre / Re Cooling) → S3 코일 출구 → (재열) → S4 급기 → R 실내 · 동절기: W1 외기 + R 환기 → W2 혼합 → (가열) → W3 → (가습) → W4 급기 → R 실내</p>`);
 
@@ -1792,7 +1846,9 @@ $('btnReset').onclick=()=>{ S=clone(DEFAULTS); $('side').innerHTML=''; buildInpu
 function applyLoaded(o){
   if(o && o.app==='crLoadCalc' && o.data) o=o.data;
   if(!o || typeof o!=='object' || Array.isArray(o)) throw new Error('bad');
+  const eqN=(Array.isArray(o.equip)?o.equip:[]).filter(e=>(+e.kw||0)>0).length;
   S=normState(o); $('side').innerHTML=''; buildInputs(); update();
+  if(eqN) setTimeout(()=>toast(`이 파일의 공정 장비 목록 ${eqN}건은 더 이상 사용하지 않습니다. 해당 kW를 룸 입력의 POWER 칸에 넣어주세요.`),2700);
 }
 $('btnCopy').onclick=()=>{
   const d=new Date(), p2=x=>String(x).padStart(2,'0'), stamp=`${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}`;
