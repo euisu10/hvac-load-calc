@@ -65,7 +65,10 @@ button{font:inherit;cursor:pointer}
 
 /* calc view */
 .wrap{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:16px;padding:16px 20px;max-width:1500px;margin:0 auto}
-@media (max-width:1050px){.wrap{grid-template-columns:1fr}.side{position:static!important}}
+@media (max-width:1050px){.wrap{grid-template-columns:minmax(0,1fr)}.side{position:static!important;max-height:none!important;overflow:visible!important}}
+.wrap>*{min-width:0}details.card{min-width:0;overflow:hidden}.scroll{max-width:100%;-webkit-overflow-scrolling:touch}
+#report{overflow-x:auto;-webkit-overflow-scrolling:touch}
+@media (max-width:700px){.wrap{padding:10px 8px;gap:10px}.bar{padding:6px 6px 0;position:static}.bar .in{padding:8px 10px}.grid{grid-template-columns:minmax(0,1fr)}.f.wide{grid-template-columns:110px minmax(0,1fr)}summary .hint{display:none}.rpt-tools{padding:0 8px}}
 .card{background:var(--sheet);border:1px solid var(--rule);border-radius:6px}
 details.card{margin-bottom:12px}
 details.card>summary{list-style:none;padding:10px 14px;font-weight:600;display:flex;gap:10px;align-items:center;cursor:pointer;border-bottom:1px solid transparent}
