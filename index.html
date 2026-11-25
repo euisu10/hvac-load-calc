@@ -128,6 +128,18 @@ input.req:placeholder-shown{border-color:var(--warn);background:var(--reqbg)}
 .row-x{border:0;background:none;color:var(--bad);font-size:15px;padding:0 6px}
 .addrow{margin:0 14px 12px}
 
+/* rooms table */
+.rwrap{padding-bottom:6px}
+.rtab{width:auto;font-size:12px}.rtab th{white-space:nowrap;font-size:11px;line-height:1.2}.rtab th small{display:block;font-weight:400;color:var(--muted);font-size:10px}
+.rtab th.grp{background:var(--soft);color:var(--accent);font-weight:700;letter-spacing:.02em}.rtab th.au{color:var(--muted)}
+.rtab td input,.rtab td select{padding:3px 5px;font-size:12px;height:26px}.rtab td select{border:0;border-radius:0;background:var(--input)}
+.rtab td input.ra:placeholder-shown{background:var(--autobg)}.rtab td input.ra::placeholder{color:var(--muted);opacity:1}.rtab td input.ra:not(:placeholder-shown){color:var(--warn);font-weight:600}
+.rtab td input.dis{opacity:.35}.rtab td.ro{background:var(--autobg);font-weight:700;color:var(--blue);padding:2px 6px}
+.rtab .stk{position:sticky;left:0;z-index:2;background:var(--sheet)}.rtab .stk2 input{font-weight:600}.rtab .stk2{left:62px;box-shadow:2px 0 0 var(--rule)}.rtab td.act{min-width:62px;max-width:62px}.rtab td.act{white-space:nowrap;padding:0 4px;text-align:center}.rtab td.act b{font-family:var(--f-num);margin-right:2px}
+.row-b{border:0;background:none;color:var(--muted);font-size:13px;padding:0 3px}.row-b:hover{color:var(--accent)}
+.rbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:0 14px 8px}
+.rres{font-size:11.5px}.rres th{font-size:10.5px;line-height:1.2;white-space:nowrap}.rres th small{display:block;font-weight:400;color:var(--muted)}.rres td{padding:3px 6px!important;white-space:nowrap}
+.rres td.sel{background:var(--pillbg)!important;color:var(--pilltx);font-weight:700}.rres td.fin{font-weight:700;color:var(--blue)}.rres tfoot td{font-weight:700;background:var(--th)!important}
 /* side results */
 .sabox{margin:4px 14px 10px;border:2px solid var(--blue);border-radius:8px;overflow:hidden}
 .sabox .sah{background:var(--blue);color:#fff;padding:6px 10px;font-weight:700;font-size:12.5px;display:flex;justify-content:space-between;align-items:center}
@@ -217,7 +229,8 @@ input.req:placeholder-shown{border-color:var(--warn);background:var(--reqbg)}
   html,body{background:#fff}
   .bar,#calc,.rpt-tools,.toast{display:none!important}
   #report{display:block!important;padding:0}
-  .page{margin:0;box-shadow:none;page-break-after:always;break-after:page;width:210mm;height:297mm;min-height:0;overflow:hidden}
+  .page{margin:0;box-shadow:none;page-break-after:always;break-after:page;width:210mm;min-height:297mm;height:auto;overflow:visible}
+  .rt tr{break-inside:avoid}
   .page:last-child{page-break-after:auto;break-after:auto}
   .rt th,.rt td.hl,.rt tr.tot td,.eq b{-webkit-print-color-adjust:exact;print-color-adjust:exact}
 }
@@ -398,139 +411,198 @@ function ahuCalc({ I, L, RM, DP, S, W, saFinal, oa }, n) {
   return A;
 }
 
+// ===== reference tables (company standard; Excel 2-1A / 2-2 reference data) =====
+const CLASS_TBL = {
+  '10':     {label:'Class 10',      ach:200, achRange:'200~600', pa:2.5},
+  '100':    {label:'Class 100',     ach:200, achRange:'200~600', pa:2.0},
+  '1000':   {label:'Class 1,000',   ach:50,  achRange:'50~70',   pa:1.5},
+  '5000':   {label:'Class 5,000',   ach:35,  achRange:'35',      pa:1.5},
+  '10000':  {label:'Class 10,000',  ach:30,  achRange:'30~40',   pa:1.5},
+  '100000': {label:'Class 100,000', ach:20,  achRange:'20~30',   pa:1.0},
+  'GR':     {label:'일반실 (G.R)',   ach:8,   achRange:'8',       pa:0.5, fa:25},
+};
+const LUX_TBL = {300:15, 500:20, 700:25};
+const TEMPTOL_TBL = {3:10, 2:15, 1:25, 0.5:60, 0.1:120};
+const personSHfor = t => Math.round(118 - 3*(t-20));   // 20℃:118, 22℃:112, 24℃:106 kcal/h·인
+const isBlank = v => v === '' || v == null || (typeof v === 'number' && isNaN(v));
+
+// ===== room model: every item per room; blank auto-items take the company standard =====
+function defaultRoom(i = 1) {
+  return { id: 'R' + i + '_' + Math.random().toString(36).slice(2, 6), name: i === 1 ? 'CLEAN ROOM' : 'ROOM ' + i, building: '',
+    area: '', ch: 3, cleanClass: '100000', roomType: 'CR', condId: 'CR2', roomTtol: 2, roomRHtol: 10, illum: 500,
+    personDensity: 0.05, persons: '', eaGen: '', eaProc: 0, eaSaRatio: 0,
+    bldgUnit: 50, heatUnit: 50, lightUnit: '', lightFactor: 1.5, personSH: '', roomSF: 0,
+    procMode: 'density', targetDensity: '', densityKw: '', densityRate: 30,
+    ach: '', paFactor: '', faPerPerson: '', tempACH: '', caRatio: 50,
+    bfuCMM: 28, bfuSF: 1.1, bfuW: 300, bfuFactor: 0.3, bfuQty: '', fanLoad: '', hfbCMM: 28, hfbSF: 1.1, hfbQty: '' };
+}
+// auto (standard) value of a room item — independent of calculation results
+function roomAuto(rm, k, I) {
+  const cls = CLASS_TBL[rm.cleanClass] || CLASS_TBL['100000'], gr = rm.roomType === 'GR';
+  const cond = allRoomConds(I || {}).find(c => c.id === rm.condId) || DESIGN_CONDITIONS.rooms[0];
+  switch (k) {
+    case 'persons': return Math.round((+rm.area || 0) * (+rm.personDensity || 0));
+    case 'lightUnit': return LUX_TBL[rm.illum] ?? 20;
+    case 'personSH': return personSHfor(+cond.db);
+    case 'ach': return cls.ach;
+    case 'paFactor': return gr ? CLASS_TBL.GR.pa : cls.pa;
+    case 'faPerPerson': return gr ? 25 : 40;
+    case 'tempACH': return TEMPTOL_TBL[rm.roomTtol] ?? 15;
+    case 'targetDensity': return gr ? 100 : 160;
+  }
+  return null;
+}
+const AUTO_KEYS = ['persons', 'lightUnit', 'personSH', 'ach', 'paFactor', 'faPerPerson', 'tempACH', 'targetDensity'];
+const rv = (rm, k, I) => isBlank(rm[k]) ? roomAuto(rm, k, I) : +rm[k];
+
+// single-room state (older files) → rooms[]
+function migrateState(o) {
+  if (!o || Array.isArray(o.rooms)) return o;
+  const m = o.manual || {}, r = defaultRoom(1), pick = (k, auto) => auto ? (m[k] ? o[k] : '') : o[k];
+  Object.assign(r, { name: o.roomName ?? r.name, building: o.building ?? '', area: o.area ?? '', ch: o.ch ?? 3,
+    cleanClass: o.cleanClass ?? '100000', roomType: o.roomType || ((o.cleanClass === 'GR' || o.condId === 'GR') ? 'GR' : 'CR'),
+    condId: o.condId ?? 'CR2', roomTtol: o.roomTtol ?? 2, roomRHtol: o.roomRHtol ?? 10, illum: o.illum ?? 500,
+    personDensity: o.personDensity ?? 0.05, persons: pick('persons', 1), eaGen: o.eaGen ?? '', eaProc: o.eaProc ?? 0, eaSaRatio: o.eaSaRatio ?? 0,
+    bldgUnit: o.bldgUnit ?? 50, heatUnit: o.heatUnit ?? 50, lightUnit: pick('lightUnit', 1), lightFactor: o.lightFactor ?? 1.5,
+    personSH: pick('personSH', 1), roomSF: o.roomSF ?? 0, procMode: o.procMode || 'density', targetDensity: pick('targetDensity', 1),
+    densityKw: o.densityKw ?? '', densityRate: o.densityRate ?? 30, ach: pick('ach', 1), paFactor: pick('paFactor', 1),
+    faPerPerson: pick('faPerPerson', 1), tempACH: pick('tempACH', 1), caRatio: o.caRatio ?? 50,
+    bfuCMM: o.bfuCMM ?? 28, bfuSF: o.bfuSF ?? 1.1, bfuW: o.bfuW ?? 300, bfuFactor: o.bfuFactor ?? 0.3, bfuQty: pick('bfuQty', 1),
+    fanLoad: pick('fanLoad', 1), hfbCMM: o.hfbCMM ?? 28, hfbSF: o.hfbSF ?? 1.1, hfbQty: pick('hfbQty', 1) });
+  // calculate()-style flat input (tests / old API): explicit values, fanAuto
+  if (!o.manual) { AUTO_KEYS.forEach(k => { if (o[k] != null && o[k] !== '') r[k] = o[k]; }); if (o.personOverride > 0) r.persons = o.personOverride;
+    if (o.fanAuto === false) r.fanLoad = o.fanLoad ?? 0; if (o.bfuManual) r.bfuQty = o.bfuQty; if (o.hfbManual) r.hfbQty = o.hfbQty; }
+  const n = { ...o, rooms: [r] };
+  n.equip = (o.equip || []).map(e => ({ ...e, room: r.id }));
+  ['roomName','building','area','ch','cleanClass','roomType','condId','roomTtol','roomRHtol','illum','personDensity','persons','personOverride','manual',
+   'eaGen','eaProc','eaSaRatio','ach','paFactor','faPerPerson','tempACH','caRatio','bldgUnit','heatUnit','lightUnit','lightFactor','personSH','fanLoad','roomSF',
+   'bfuCMM','bfuSF','bfuW','bfuFactor','bfuQty','hfbCMM','hfbSF','hfbQty','procMode','targetDensity','densityRate','densityKw','fanAuto','bfuManual','hfbManual','location','floorH'].forEach(k => delete n[k]);
+  return n;
+}
+
+// ---- one room: loads, make-up air, supply air (company Excel method), BFU fan heat & S.A-based exhaust solved iteratively
+function roomCalc(I, rm, ix, DPz, rooms) {
+  const W_ = [], P = DESIGN_CONDITIONS.pressure, tag = rm.name || ('ROOM ' + (ix + 1));
+  const cond = rooms.find(c => c.id === rm.condId) || rooms[0];
+  if (!rooms.find(c => c.id === rm.condId)) W_.push(`${tag}: 선택한 설계조건을 찾을 수 없어 첫 번째 조건을 적용했습니다.`);
+  const RMr = cond.room;
+  const area = +rm.area || 0, ch = +rm.ch || 0, vol = area * ch;
+  const v = k => rv(rm, k, I);
+  const persons = isBlank(rm.persons) ? XL.round(area * (+rm.personDensity || 0), 0) : +rm.persons;
+  const eaGen = +rm.eaGen || 0, eaProc = +rm.eaProc || 0;
+  const eaRatio = Math.max(0, Math.min(90, +rm.eaSaRatio || 0)) / 100;
+  const paFactor = v('paFactor'), faPP = v('faPerPerson');
+  const pa = XL.roundup(vol * paFactor, -2), fa = persons * faPP;
+  const U = { bldg: +rm.bldgUnit || 0, heat: +rm.heatUnit || 0, light: v('lightUnit'), lightF: +rm.lightFactor || 0, personSH: v('personSH'),
+    sf: +rm.roomSF || 0, ach: v('ach'), tempACH: v('tempACH'), caRatio: +rm.caRatio || 0, target: v('targetDensity'), rate: (+rm.densityRate || 100) / 100 };
+  const equips = (I.equip || []).filter(e => e.room === rm.id);
+  let eaSa = 0, eaTotal = 0, oa = 0;
+  const setOA = () => { eaTotal = XL.roundup(eaGen + eaProc + eaSa, -1); oa = Math.max(pa + eaTotal, fa); };
+  const solve = (fanIn) => {
+    const w = [];
+    const L = { bldg: U.bldg * area, person: U.personSH * persons, light: U.light * area * U.lightF, proc: 0, fan: fanIn };
+    const others = L.bldg + L.person + L.light + L.fan, sfK = 1 + U.sf / 100;
+    const usePCW = !!I.usePCW, useEx = !!I.useExhaust;
+    let procRows = [], procDensity = null, pH = 0, pK = 0, pM = 0, pN = 0, pKw = 0;
+    if (rm.procMode === 'power') {
+      procRows = equips.map(e => {
+        const H = XL.roundup(e.qty * e.kw * 860, 0), K = usePCW ? e.pcwLpm * e.pcwDT * 60 : 0, M = useEx ? e.exCmh * 0.288 * e.exDT : 0;
+        const N = XL.roundup((H - K - M) * e.rate / 100, -1);
+        pH += H; pK += K; pM += M; pN += N; pKw += e.qty * e.kw;
+        if (N < 0) w.push(`${tag}: 공정장비 "${e.name}" A/C 부하가 음수입니다(PCW/배기 제거열 > 발열). 입력을 확인하세요.`);
+        return { ...e, H, K, M, N };
+      });
+    } else {
+      const target = U.target * area, need = target / sfK - others;
+      const nAuto = Math.max(0, XL.roundup(need, -1)), kwAuto = XL.roundup(nAuto / U.rate, 0) / 860;
+      const manual = !isBlank(rm.densityKw) && +rm.densityKw >= 0;
+      if (manual) { pKw = +rm.densityKw || 0; pH = XL.roundup(pKw * 860, 0); pN = XL.roundup(pH * U.rate, -1); }
+      else { if (need < 0 && area > 0) w.push(`${tag}: 목표 부하밀도 ${U.target} kcal/h·m²가 건물·인체·조명 부하만으로 이미 초과됩니다. 공정부하 0으로 계산했습니다.`);
+        pN = nAuto; pH = XL.roundup(pN / U.rate, 0); pKw = pH / 860; }
+      procDensity = { target: U.target, targetLoad: target, others, need: pN, kwEq: pKw, rate: U.rate * 100, powerLoad: pH, manual, kwAuto };
+    }
+    L.proc = pN; L.sub = L.bldg + L.person + L.light + L.proc + L.fan; L.total = L.sub * sfK; L.heat = area * U.heat;
+    L.density = area ? L.total / area : 0; L.densityW = area ? L.total / 0.86 / area : 0;
+    const ca = XL.roundup(vol * U.ach, -2), dT = RMr.db - DPz.db;
+    const saLoad = dT > 0 ? XL.roundup(L.total / 0.29 / dT, -1) : 0, saTemp = vol * U.tempACH, saCa = ca * U.caRatio / 100;
+    const saFinal = Math.max(saLoad, oa, saCa, saTemp);
+    const govKey = saFinal === saLoad ? 'load' : saFinal === oa ? 'oa' : saFinal === saCa ? 'ca' : 'temp';
+    const gov = govKey === 'load' ? `부하 (ΔT ${(Math.round(dT * 100) / 100).toFixed(2)}℃)` : govKey === 'oa' ? '외기량 (O.A)' : govKey === 'ca' ? `C.A × ${U.caRatio}%` : '온도편차 환기횟수';
+    if (dT <= 0) w.push(`${tag}: 실내온도가 코일 출구(노점)온도보다 낮거나 같습니다.`);
+    const air2 = { ca, dT, saLoad, saTemp, saCa, saFinal, gov, govKey, achActual: vol ? saFinal / vol : 0, caACH: vol ? ca / vol : 0 };
+    const bfuAuto = +rm.bfuCMM > 0 ? Math.max(0, XL.roundup((ca - saFinal) / +rm.bfuCMM / 60 * (+rm.bfuSF || 1), 0)) : 0;
+    const hfb = +rm.hfbCMM > 0 ? XL.roundup(saFinal / +rm.hfbCMM / 60 * (+rm.hfbSF || 1), 0) : 0;
+    return { L, air2, procRows, procDensity, procTot: { H: pH, K: pK, M: pM, N: pN, kw: pKw, mode: rm.procMode === 'power' ? 'power' : 'density', usePCW, useEx }, w, bfuAuto, hfb };
+  };
+  const bfuManual = !isBlank(rm.bfuQty), fanManual = !isBlank(rm.fanLoad);
+  const fanOf = q => q * (+rm.bfuW || 0) * (+rm.bfuFactor || 0) * 0.86;
+  let sol, bfuQty, fan;
+  for (let ek = 0; ek < 40; ek++) {
+    setOA();
+    if (!fanManual) {
+      bfuQty = bfuManual ? +rm.bfuQty : 0;
+      for (let it = 0; it < 12; it++) {
+        fan = fanOf(bfuQty); sol = solve(fan);
+        if (bfuManual || sol.bfuAuto === bfuQty) break;
+        bfuQty = it < 8 ? sol.bfuAuto : Math.max(bfuQty, sol.bfuAuto);
+      }
+    } else { fan = +rm.fanLoad || 0; sol = solve(fan); bfuQty = bfuManual ? +rm.bfuQty : sol.bfuAuto; }
+    const nx = eaRatio > 0 ? XL.roundup(sol.air2.saFinal * eaRatio, -1) : 0;
+    if (nx === eaSa) break;
+    eaSa = ek < 30 ? nx : Math.max(eaSa, nx);
+  }
+  const hfbSel = isBlank(rm.hfbQty) ? sol.hfb : +rm.hfbQty;
+  return { ix, id: rm.id, name: tag, building: rm.building, rm, cond, RM: RMr, area, ch, vol, persons, U, paFactor, faPP,
+    L: sol.L, air2: sol.air2, proc: sol.procRows, procDensity: sol.procDensity, procTot: sol.procTot,
+    oa: { pa, paFactor, fa, ea: eaTotal, eaGen, eaProc, eaSa, eaRatio: eaRatio * 100, oa, governing: (pa + eaTotal) >= fa ? 'EA+PA' : 'F.A(인원)' },
+    bfu: { auto: sol.bfuAuto, qty: bfuQty, manual: bfuManual, fanAuto: !fanManual, fan: sol.L.fan, fanCalc: fanOf(bfuQty), hfb: sol.hfb, hfbSel, hfbManual: !isBlank(rm.hfbQty) },
+    warn: sol.w.concat(W_) };
+}
+
 function calculate(I0) {
-  const I = { ...I0 };
-  ['area', 'ch', 'eaGen', 'eaProc', 'personDensity'].forEach(k => I[k] = +I[k] || 0);
+  const I = migrateState({ ...I0 });
   const P = DESIGN_CONDITIONS.pressure;
   const R = { warn: [] };
-  // ---- 2-1A design conditions (fixed table + user-added rows)
   const outdoor = DESIGN_CONDITIONS.outdoor.map(o => resolveOutdoor(o, P));
   const S = outdoor.find(o => o.id === 'SUMMER'), W = outdoor.find(o => o.id === 'WINTER');
   const rooms = allRoomConds(I).map(c => resolveRoom(c, P));
-  let rc = rooms.find(c => c.id === I.condId);
-  if (!rc) { rc = rooms[0]; R.warn.push('선택한 설계조건을 찾을 수 없어 첫 번째 조건을 적용했습니다.'); }
-  const RM = rc.room, DP = rc.dew;
+  const RMS = (I.rooms && I.rooms.length) ? I.rooms : [defaultRoom(1)];
+  // zone coil-leaving (dew) point = the lowest dew point among the applied room conditions (one coil per AHU)
+  const used = [...new Set(RMS.map(r => (rooms.find(c => c.id === r.condId) || rooms[0]).id))].map(id => rooms.find(c => c.id === id));
+  const zc = used.reduce((a, c) => c.dew.db < a.dew.db ? c : a, used[0]);
+  const DP = zc.dew;
+  const RR = RMS.map((rm, ix) => roomCalc(I, rm, ix, DP, rooms));
+  R.rooms = RR; RR.forEach(r => R.warn.push(...r.warn));
+  if (used.length > 1) R.warn.push(`룸별 설계조건이 다릅니다 — 코일 출구는 가장 낮은 노점(${zc.name} ${zc.dew.db.toFixed(1)}℃) 기준, 환기 상태는 급기량 가중 평균으로 계산했습니다.`);
+  const sum = f => RR.reduce((a, r) => a + (f(r) || 0), 0);
+  // mixed room (return) state — S.A-weighted; identical to the room condition when all rooms share one
+  let RM;
+  if (used.length === 1) RM = { ...zc.room };
+  else { const wt = sum(r => r.air2.saFinal) || 1, db = sum(r => r.air2.saFinal * r.RM.db) / wt, ah = sum(r => r.air2.saFinal * r.RM.ah) / wt;
+    RM = { db, ah, h: enth(db, ah), rh: rhFrom(db, ah, P) }; }
   RM.dew = dewPoint(RM.ah, P);
-  R.air = { S, W, RM, DP, outdoor, rooms, applied: rc };
+  R.air = { S, W, RM, DP, outdoor, rooms, applied: zc, used, multiCond: used.length > 1 };
+  const area = sum(r => r.area), vol = sum(r => r.vol);
+  R.room = { area, vol, ch: area ? vol / area : 0, persons: sum(r => r.persons), eaTotal: sum(r => r.oa.ea), n: RR.length };
+  const oa = sum(r => r.oa.oa);
+  R.oa = { pa: sum(r => r.oa.pa), fa: sum(r => r.oa.fa), ea: sum(r => r.oa.ea), eaGen: sum(r => r.oa.eaGen), eaProc: sum(r => r.oa.eaProc), eaSa: sum(r => r.oa.eaSa),
+    eaRatio: RR.length === 1 ? RR[0].oa.eaRatio : null, oa, paFactor: RR.length === 1 ? RR[0].paFactor : null,
+    governing: RR.length === 1 ? RR[0].oa.governing : '룸별 (per room)' };
+  const L = { bldg: sum(r => r.L.bldg), person: sum(r => r.L.person), light: sum(r => r.L.light), proc: sum(r => r.L.proc), fan: sum(r => r.L.fan),
+    sub: sum(r => r.L.sub), total: sum(r => r.L.total), heat: sum(r => r.L.heat) };
+  L.density = area ? L.total / area : 0; L.densityW = area ? L.total / 0.86 / area : 0;
+  R.load = L;
+  const saFinal = sum(r => r.air2.saFinal);
+  R.air2 = { ca: sum(r => r.air2.ca), saLoad: sum(r => r.air2.saLoad), saTemp: sum(r => r.air2.saTemp), saCa: sum(r => r.air2.saCa), saFinal,
+    dT: RM.db - DP.db, gov: RR.length === 1 ? RR[0].air2.gov : '룸별 MAX 합계', govKey: RR.length === 1 ? RR[0].air2.govKey : 'rooms', achActual: vol ? saFinal / vol : 0 };
+  R.proc = RR.flatMap(r => r.proc.map(p => ({ ...p, roomName: r.name })));
+  R.procDensity = RR.length === 1 ? RR[0].procDensity : null;
+  R.procTot = { H: sum(r => r.procTot.H), K: sum(r => r.procTot.K), M: sum(r => r.procTot.M), N: sum(r => r.procTot.N), kw: sum(r => r.procTot.kw),
+    mode: RR.every(r => r.procTot.mode === 'density') ? 'density' : RR.every(r => r.procTot.mode === 'power') ? 'power' : 'mixed', usePCW: !!I.usePCW, useEx: !!I.useExhaust };
+  R.bfu = { auto: sum(r => r.bfu.auto), qty: sum(r => r.bfu.qty), fan: L.fan, hfb: sum(r => r.bfu.hfb), hfbSel: sum(r => r.bfu.hfbSel),
+    manual: RR.some(r => r.bfu.manual), hfbManual: RR.some(r => r.bfu.hfbManual), fanAuto: RR.every(r => r.bfu.fanAuto), recirc: Math.max(0, R.air2.ca - saFinal) };
 
-  // ---- 1-1 room
-  const area = I.area, ch = I.ch, vol = area * ch;
-  const persons = I.personOverride > 0 ? I.personOverride : XL.round(area * I.personDensity, 0);
-  // E.A = general + process + S.A-based exhaust (S.A × ratio, used when exhaust is unknown) — S.A part solved iteratively
-  const eaRatio = Math.max(0, Math.min(90, +I.eaSaRatio || 0)) / 100;
-  let eaSa = 0, eaTotal = 0;
-  R.room = { area, ch, vol, persons, eaTotal };
-
-  // ---- 2-1A make-up air
-  const paFactor = I.paFactor;
-  const pa = XL.roundup(vol * paFactor, -2);
-  const fa = persons * I.faPerPerson;
-  let oa = 0;
-  const setOA = () => { eaTotal = XL.roundup(I.eaGen + I.eaProc + eaSa, -1); oa = Math.max(pa + eaTotal, fa); };
-  setOA();
-
-  // ---- room load + air volume, solved together with BFU fan heat (BFU qty ↔ fan load ↔ S.A)
-  const solve = (fanIn) => {
-    const W_ = [];
-    // ---- 2-2 room load (non-process items)
-    const L = {
-      bldg: I.bldgUnit * area,
-      person: I.personSH * persons,
-      light: I.lightUnit * area * I.lightFactor,
-      proc: 0,
-      fan: fanIn,
-    };
-    const others = L.bldg + L.person + L.light + L.fan;
-    const sfK = 1 + I.roomSF / 100;
-
-    // ---- 2-1B process load
-    //  mode 'density': equipment power unknown → process load back-calculated from target load density (kcal/h·m²)
-    //  mode 'power'  : equipment power known  → (POWER − PCW − EXHAUST) × LOAD RATE
-    const usePCW = !!I.usePCW, useEx = !!I.useExhaust;
-    let procRows = [], procDensity = null;
-    let pH = 0, pK = 0, pM = 0, pN = 0, pKw = 0;
-    if (I.procMode === 'density') {
-      const target = I.targetDensity * area;               // total room load aimed at
-      const rate = (+I.densityRate || 100) / 100;
-      const need = target / sfK - others;
-      const nAuto = Math.max(0, XL.roundup(need, -1));
-      const kwAuto = XL.roundup(nAuto / rate, 0) / 860;    // kW that reaches the target density
-      let manual = !!I.densityKwManual && (+I.densityKw || 0) >= 0 && I.densityKw !== '';
-      if (manual) {                                        // arbitrary kW (company practice) → load → resulting density
-        pKw = +I.densityKw || 0;
-        pH = XL.roundup(pKw * 860, 0);
-        pN = XL.roundup(pH * rate, -1);
-      } else {
-        if (need < 0) W_.push(`목표 부하밀도 ${I.targetDensity} kcal/h·m²가 건물·인체·조명 부하만으로 이미 초과됩니다. 공정부하 0으로 계산했습니다.`);
-        pN = nAuto; pH = XL.roundup(pN / rate, 0); pKw = pH / 860;
-      }
-      procRows = [];
-      procDensity = { target: I.targetDensity, targetLoad: target, others, need: pN, kwEq: pKw, rate: rate * 100, powerLoad: pH, manual, kwAuto };
-    } else {
-      procRows = I.equip.map(e => {
-        const H = XL.roundup(e.qty * e.kw * 860, 0);
-        const K = usePCW ? e.pcwLpm * e.pcwDT * 60 : 0;
-        const M = useEx ? e.exCmh * 0.288 * e.exDT : 0;
-        const N = XL.roundup((H - K - M) * e.rate / 100, -1);
-        pH += H; pK += K; pM += M; pN += N; pKw += e.qty * e.kw;
-        if (N < 0) W_.push(`공정장비 "${e.name}" A/C 부하가 음수입니다(PCW/배기 제거열 > 발열). 입력을 확인하세요.`);
-        return { ...e, H, K, M, N };
-      });
-    }
-    const procTot = { H: pH, K: pK, M: pM, N: pN, kw: pKw, mode: I.procMode, usePCW, useEx };
-    L.proc = pN;
-    L.sub = L.bldg + L.person + L.light + L.proc + L.fan;
-    L.total = L.sub * (1 + I.roomSF / 100);
-    L.heat = area * I.heatUnit;
-    L.density = L.total / area;
-    L.densityW = L.total / 0.86 / area;
-
-    // ---- air volume
-    const ca = XL.roundup(vol * I.ach, -2);
-    const dT = RM.db - DP.db;
-    const saLoad = XL.roundup(L.total / 0.29 / dT, -1);
-    const saTemp = vol * I.tempACH;
-    const saCa = ca * (+I.caRatio || 0) / 100;                // minimum S.A = C.A × ratio (company practice: C.A ÷ 2)
-    const saFinal = Math.max(saLoad, oa, saCa, saTemp);
-    const gov = saFinal === saLoad ? `부하 (ΔT ${(Math.round(dT*100)/100).toFixed(2)}℃)` : saFinal === oa ? '외기량 (O.A)' : saFinal === saCa ? `C.A × ${+I.caRatio}%` : '온도편차 환기횟수';
-    const air2 = { ca, dT, saLoad, saTemp, saCa, saFinal, gov, achActual: saFinal / vol, caACH: ca / vol };
-    if (dT <= 0) W_.push('실내온도가 코일 출구(노점)온도보다 낮거나 같습니다.');
-    // BFU (recirculation C.A − S.A) / HFB (S.A)
-    const bfuAuto = I.bfuCMM > 0 ? Math.max(0, XL.roundup((ca - saFinal) / I.bfuCMM / 60 * I.bfuSF, 0)) : 0;
-    const hfb = I.hfbCMM > 0 ? XL.roundup(saFinal / I.hfbCMM / 60 * I.hfbSF, 0) : 0;
-    return { L, air2, procRows, procDensity, procTot, W_, bfuAuto, hfb };
-  };
-  const fanOf = q => q * I.bfuW * I.bfuFactor * 0.86;
-  let sol, bfuQty, fan;
-  for (let ek = 0; ek < 40; ek++) {
-  setOA();
-  if (I.fanAuto) {
-    bfuQty = I.bfuManual ? (+I.bfuQty || 0) : 0;
-    for (let it = 0; it < 12; it++) {
-      fan = fanOf(bfuQty);
-      sol = solve(fan);
-      if (I.bfuManual) break;
-      if (sol.bfuAuto === bfuQty) break;
-      bfuQty = it < 8 ? sol.bfuAuto : Math.max(bfuQty, sol.bfuAuto);
-    }
-  } else {
-    fan = +I.fanLoad || 0; sol = solve(fan);
-    bfuQty = I.bfuManual ? (+I.bfuQty || 0) : sol.bfuAuto;
-  }
-  const nx = eaRatio > 0 ? XL.roundup(sol.air2.saFinal * eaRatio, -1) : 0;
-  if (nx === eaSa) break;
-  eaSa = ek < 30 ? nx : Math.max(eaSa, nx);
-  }
-  R.room.eaTotal = eaTotal;
-  R.oa = { pa, paFactor, fa, ea: eaTotal, eaGen: I.eaGen, eaProc: I.eaProc, eaSa, eaRatio: eaRatio * 100, oa, governing: (pa + eaTotal) >= fa ? 'EA+PA' : 'F.A(인원)' };
-  const L = sol.L; R.load = L; R.air2 = sol.air2; R.proc = sol.procRows; R.procDensity = sol.procDensity; R.procTot = sol.procTot;
-  R.warn.push(...sol.W_);
-  R.bfu = { auto: sol.bfuAuto, qty: bfuQty, manual: !!I.bfuManual, fanAuto: !!I.fanAuto, fan: L.fan, fanCalc: fanOf(bfuQty), hfb: sol.hfb,
-            recirc: Math.max(0, sol.air2.ca - sol.air2.saFinal) };
-  R.bfu.hfbManual = !!I.hfbManual; R.bfu.hfbSel = I.hfbManual ? (+I.hfbQty || 0) : sol.hfb;
-  const { saFinal } = sol.air2;
-
-  // ---- AHU capacity: whole room (as 1 unit) and per unit (÷ AHU 대수)
+  // ---- AHU capacity: whole zone (as 1 unit) and per unit (÷ AHU 대수)
   const n = Math.max(1, Math.round(I.ahuQty || 1));
   const ctx = { I, L, RM, DP, S, W, saFinal, oa };
   R.ahuAll = ahuCalc(ctx, 1);
@@ -538,24 +610,16 @@ function calculate(I0) {
   const A = R.ahu;
   R.per = { rsh: L.total / n, heat: L.heat / n, sa: saFinal / n, oa: oa / n };
   R.per.ra = R.per.sa - R.per.oa; R.per.oaRatio = R.per.oa / R.per.sa;
-
-  // ---- equipment schedule totals (대당 × 대수)
   const T = { n };
   T.sa = n * A.sa; T.oa = n * A.oa;
   T.heatW = n * A.heatCap; T.heatS = n * A.reheat; T.heat = n * A.heatSel; T.hum = n * A.hum;
-  T.pre = n * A.pre; T.re = n * A.re;
-  T.cool = n * (A.pre + A.re);
-  T.usrt = T.cool / 3024; T.conv = T.cool / I.coolKcal;
-  T.chReq = T.conv;  // required chiller capacity in the selected basis (RT = total cooling ÷ 환산값)
-  const chSel = (rt, qty) => {
-    rt = +rt || 0;
+  T.pre = n * A.pre; T.re = n * A.re; T.cool = n * (A.pre + A.re);
+  T.usrt = T.cool / 3024; T.conv = T.cool / I.coolKcal; T.chReq = T.conv;
+  const chSel = (rt, qty) => { rt = +rt || 0;
     const auto = rt > 0 ? XL.roundup(T.chReq / rt, 0) : 0, manual = (+qty || 0) > 0, q = manual ? Math.round(+qty) : auto;
-    return { rt, auto, manual, qty: q, total: rt * q, margin: q ? rt * q / T.chReq : 0, perReq: q ? T.chReq / q : 0 };
-  };
-  T.chAir = chSel(I.chillerRT, I.chillerQty);
-  T.chWater = chSel(I.wcChillerRT, I.wcChillerQty);
-  T.cwLpm = T.cool / (I.cwDT * 60);
-  T.fanKw = n * A.fanKw;
+    return { rt, auto, manual, qty: q, total: rt * q, margin: q ? rt * q / T.chReq : 0, perReq: q ? T.chReq / q : 0 }; };
+  T.chAir = chSel(I.chillerRT, I.chillerQty); T.chWater = chSel(I.wcChillerRT, I.wcChillerQty);
+  T.cwLpm = T.cool / (I.cwDT * 60); T.fanKw = n * A.fanKw;
   R.tot = T;
   return R;
 }
@@ -564,16 +628,10 @@ function calculate(I0) {
 const DEFAULTS = {
   client: '', project: '', zone: '',
   docDate: '', rev: '', preparedBy: '', checkedBy: '', approvedBy: '',
-  condId: 'CR2', customConds: [],
-  roomName: 'CLEAN ROOM', roomType: 'CR', building: '', area: '', floorH: '', ch: 3,
-  cleanClass: '100000', roomTtol: 2, roomRHtol: 10,
-  illum: 500, personDensity: 0.05, personOverride: 0, persons: 559, manual: {},
-  eaGen: '', eaProc: 0, eaSaRatio: 0,
-  ach: 20, paFactor: 1, faPerPerson: 40, tempACH: 15, caRatio: 50,
-  bldgUnit: 50, heatUnit: 50, lightUnit: 20, lightFactor: 1.5, personSH: 112, fanLoad: 0, roomSF: 0,
-  bfuCMM: 28, bfuSF: 1.1, bfuW: 300, bfuFactor: 0.3, bfuQty: 0, hfbCMM: 28, hfbSF: 1.1, hfbQty: 0,
-  equip: [{ name: 'PROCESS EQUIPMENT', qty: 1, phase: 3, volt: 380, kw: 0, pcwLpm: 0, pcwDT: 5, exCmh: 0, exDT: 0, rate: 30 }],
-  procMode: 'density', targetDensity: 160, densityRate: 30, densityKw: '', usePCW: false, useExhaust: false,
+  customConds: [],
+  rooms: [defaultRoom(1)],
+  equip: [],
+  usePCW: false, useExhaust: false,
   ahuTag: 'AHU-101', ahuQty: 1, useHeat: true, useHum: true, ahuType: 'FILTER(G4+F8)+PRE COOLING+RE COOLING+HEATING+HUMIDIFIER+FAN',
   rlh: 0, coolSF: 1.1, heatSF: 1.1, humSF: 1.3, coolType: 'CW', coolKcal: 3024, cwDT: 5, cwSupply: 7, heatSource: 'ELEC.', humType: 'Electrode',
   spSF: 1.1, fanEff: 0.7, motorMargin: 1.15, motorSel: '55 kW × 2', elec: '3Ø / 380 V / 50 Hz',
@@ -586,17 +644,18 @@ const DEFAULTS = {
   ],
   chillerRT: 0, chillerQty: '', wcChillerRT: 0, wcChillerQty: '', chTab: 'air',
 };
-if (typeof module !== 'undefined') module.exports = { calculate, DEFAULTS, absHum, enth, DESIGN_CONDITIONS };
+if (typeof module !== 'undefined') module.exports = { calculate, DEFAULTS, defaultRoom, migrateState, absHum, enth, DESIGN_CONDITIONS };
 
 </script>
 <script>
 // ---------- i18n (KR / US / VN) & skin ----------
 const LOGO_SRC = 'data:image/png;base64,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';
 const LOGO_HTML = `<span class="lg"><img src="${LOGO_SRC}" alt=""><b>SHINSUNG E&amp;G<br>VIETNAM</b></span>`;
-const I18N = {"공조 장비":["AHU","AHU"],"구역":["area","khu vực"],"코팅실 외":["coating room etc.","phòng phủ v.v."],"예":["e.g.","vd."],"입력값 저장":["Save Inputs","Lưu dữ liệu"],"입력값을 파일로 저장했습니다":["Inputs saved to file","Đã lưu dữ liệu ra tệp"],"현열 풍량 산정 시 잠열부하 불필요":["latent load not needed for sensible airflow","không cần tải ẩn khi tính lưu lượng hiện"],"냉방열원 기준":["Cooling source","Nguồn lạnh"],"표준과 다름":["differs from standard","khác tiêu chuẩn"],"현재":["Current","Hiện tại"],"히팅":["Heating","Sưởi"],"사용":["use","dùng"],"미사용":["Not used","Không dùng"],"기준 배기량":["based exhaust","khí thải theo"],"적용값":["applied","áp dụng"],"총 배기량":["Total exhaust","Tổng khí thải"],"배기량 미상 시 적용":["If exhaust unknown:","Khi chưa biết lượng khí thải:"],"기준 배기":["based exhaust","khí thải theo"],"총 배기":["Total exhaust","Tổng khí thải"],"미적용":["Not applied","Không áp dụng"],"공조 풍량 배분":["Air Flow Distribution","Phân phối lưu lượng gió"],"풍량은 실 전체 기준":["Airflow: whole room basis","Lưu lượng: theo toàn phòng"],"상태점과 선도는 공조기":["State points & chart: per","Điểm trạng thái & biểu đồ: mỗi"],"실 구분":["Room type","Loại phòng"],"난방":["Heating","Sưởi"],"칠러":["Chiller","Chiller"],"사내":["Company","Công ty"],"대당 용량을 입력하거나 위 목록에서 고르면 수량과 여유율이 계산됩니다": ["Enter the unit capacity or pick one from the list to calculate quantity and margin", "Nhập công suất mỗi máy hoặc chọn trong danh sách để tính số lượng và hệ số dự phòng"], "선택한 설계조건을 찾을 수 없어 첫 번째 조건을 적용했습니다": ["Selected design condition not found; the first condition was applied", "Không tìm thấy điều kiện thiết kế đã chọn; đã áp dụng điều kiện đầu tiên"], "이 미리보기 화면에서는 인쇄가 막혀 있을 수 있습니다": ["Printing may be blocked in this preview", "Chức năng in có thể bị chặn trong màn hình xem trước này"], "가 건물·인체·조명 부하만으로 이미 초과됩니다": ["is already exceeded by building, person and lighting loads alone", "đã bị vượt chỉ bởi tải tòa nhà, người và chiếu sáng"], "필수 입력값을 넣으면 습공기 선도가 표시됩니다": ["Enter the required inputs to show the psychrometric chart", "Nhập các giá trị bắt buộc để hiển thị biểu đồ trắc ẩm"], "옵션을 켜면 강조 셀 색이 함께 출력됩니다": ["option to print highlighted cell colors", "để in cả màu ô được tô"], "면적 등 필수 입력값을 먼저 넣어주세요": ["Please enter the required inputs (area, etc.) first", "Vui lòng nhập trước các giá trị bắt buộc (diện tích, v.v.)"], "추가 조건은 절대습도·노점온도를 비우면": ["For added conditions, leave AH / dew point blank to", "Với điều kiện bổ sung, để trống độ ẩm tuyệt đối / điểm sương thì"], "로 만든 내용을 그대로 붙여넣으세요": ["and paste the text as is", "và dán nguyên nội dung"], "기준값 자동 계산으로 되돌렸습니다": ["Reverted to automatic standard value", "Đã trở về giá trị tiêu chuẩn tự động"], "상자 안 내용을 직접 복사하세요": ["Please copy the text in the box manually", "Vui lòng tự sao chép nội dung trong ô"], "입력하면 계산 결과가 표시됩니다": ["to see the calculation results", "để hiển thị kết quả tính toán"], "기준값 자동 계산으로 되돌리기": ["Revert to automatic standard value", "Trở về giá trị tiêu chuẩn tự động"], "입력값을 붙여넣어 불러옵니다": ["Paste copied inputs to load them", "Dán dữ liệu đã sao chép để tải"], "생산설비 전기용량을 알 때": ["When equipment power is known", "Khi biết công suất điện thiết bị"], "을 클립보드에 복사했습니다": ["copied to clipboard", "đã sao chép vào bộ nhớ tạm"], "자동 복사가 막혀 있습니다": ["Automatic copy is blocked.", "Sao chép tự động bị chặn."], "대 기준 공기 상태 변화": ["unit basis — air state changes", "máy — thay đổi trạng thái không khí"], "면적·층고·청정도·온습도": ["Area · height · cleanliness · temp/RH", "Diện tích · chiều cao · độ sạch · nhiệt/ẩm"], "에서 선택할 수 있습니다": ["can be selected there", "có thể chọn tại đó"], "온도보다 낮거나 같습니다": ["temperature or lower", "hoặc thấp hơn nhiệt độ"], "장비 용량 미상 시 임의": ["If equipment capacity is unknown, use assumed", "Khi chưa biết công suất thiết bị, dùng giá trị giả định"], "형식이 올바르지 않습니다": ["format is invalid", "định dạng không hợp lệ"], "환산값은 직접 수정 가능": ["conversion value editable", "có thể sửa giá trị quy đổi"], "기본값으로 복원했습니다": ["defaults restored", "đã khôi phục mặc định"], "설계조건을 추가했습니다": ["Design condition added", "Đã thêm điều kiện thiết kế"], "공정배기 제거열 차감": ["Deduct process exhaust heat", "Trừ nhiệt thải khí công nghệ"], "기본값으로 되돌립니다": ["defaults", "về mặc định"], "기준표에서 자동 입력": ["Auto-filled from standard tables", "Tự động theo bảng tiêu chuẩn"], "냉방 용량 환산 기준": ["Cooling capacity basis", "Cơ sở quy đổi công suất lạnh"], "로 면적당 부하 확인": ["to check load per area", "để kiểm tra tải trên diện tích"], "실내온도가 코일 출구": ["Room temperature is at coil leaving", "Nhiệt độ phòng bằng nhiệt độ ra khỏi coil"], "입력 검토 사항 없음": ["No input issues", "Không có vấn đề đầu vào"], "입력값을 불러왔습니다": ["Inputs loaded", "Đã tải dữ liệu"], "장비 용량을 모를 때": ["Equipment capacity unknown", "Khi chưa biết công suất thiết bị"], "청정도 유지 환기횟수": ["Air changes for cleanliness", "Số lần trao đổi gió theo độ sạch"], "공정부하 산정 방식": ["Process load method", "Phương pháp tính tải công nghệ"], "대 기준으로 재계산": ["units, recalculated per unit", "máy, tính lại cho mỗi máy"], "로 자동 계산됩니다": ["are calculated automatically", "sẽ được tính tự động"], "보고서 표지·머리말": ["Report cover · header", "Bìa · tiêu đề báo cáo"], "설계조건 추가 가능": ["conditions can be added", "có thể thêm điều kiện"], "수정한 항목은 유지": ["edited items kept", "giữ các mục đã sửa"], "외기 및 설계 조건": ["Outdoor & Design Conditions", "Điều kiện ngoài trời & thiết kế"], "지우면 권장값 적용": ["clear to use recommended", "xóa để dùng giá trị đề xuất"], "환기횟수·가압·외기": ["Air changes · pressurization · OA", "Trao đổi gió · tạo áp · gió tươi"], "로 부하밀도 확인": ["to check load density", "để kiểm tra mật độ tải"], "면적당 부하 기준": ["Load per area basis", "Theo tải trên diện tích"], "배경 그래픽 켜기": ["background graphics on", "bật đồ họa nền"], "부하가 음수입니다": ["load is negative", "tải bị âm"], "온도편차 환기횟수": ["Air changes for temp. deviation", "Trao đổi gió theo dao động nhiệt"], "으로 계산했습니다": ["was used", "đã được dùng"], "인쇄 대화상자에서": ["In the print dialog, turn on", "Trong hộp thoại in, bật"], "입력을 확인하세요": ["Check the inputs", "Kiểm tra dữ liệu nhập"], "조명부하 할증계수": ["Lighting load factor", "Hệ số tăng tải chiếu sáng"], "회사 표준 고정값": ["Company standard (fixed)", "Tiêu chuẩn công ty (cố định)"], "값을 직접 수정": ["Edit value manually", "Sửa giá trị thủ công"], "건물·인체·조명": ["Building · person · lighting", "Tòa nhà · người · chiếu sáng"], "공정 장비 발열": ["Process Equipment Heat", "Nhiệt thiết bị công nghệ"], "냉방 용량 환산": ["Cooling conversion", "Quy đổi công suất lạnh"], "대당 필요 용량": ["Required per unit", "Công suất cần mỗi máy"], "실내부하 안전율": ["Room load safety factor", "Hệ số an toàn tải phòng"], "에서 직접 열어": ["directly and press", "trực tiếp và nhấn"], "을 붙여넣으세요": ["paste here", "dán vào đây"], "입력값 불러오기": ["Load Inputs", "Tải dữ liệu"], "자동 산정 수량": ["Auto quantity", "Số lượng tự động"], "장비 전력 입력": ["Equipment power input", "Nhập công suất thiết bị"], "장비 행은 최소": ["At least", "Cần tối thiểu"], "정압 항목 추가": ["Add static pressure item", "Thêm hạng mục áp suất tĩnh"], "조명부하 원단위": ["Lighting load unit", "Đơn vị tải chiếu sáng"], "최종 선정 기준": ["final selection basis", "theo lựa chọn cuối"], "최종 선정 수량": ["Final quantity", "Số lượng chọn cuối"], "파일을 브라우저": ["file in a browser", "tệp trong trình duyệt"], "필수 입력 누락": ["Missing required input", "Thiếu dữ liệu bắt buộc"], "가압풍량 계수": ["Pressurization factor", "Hệ số gió tạo áp"], "개 필요합니다": ["row is required", "dòng là bắt buộc"], "건물 현열부하": ["Building sensible load", "Tải hiện tòa nhà"], "공정부하 산정": ["Process load method", "Cách tính tải công nghệ"], "공정부하 합계": ["Process load total", "Tổng tải công nghệ"], "노점 건구온도": ["Dew point DB", "Nhiệt độ khô điểm sương"], "노점 상대습도": ["Dew point RH", "Độ ẩm tương đối điểm sương"], "대로 나눈 뒤": ["units, then", "máy, sau đó"], "대로 본 용량": ["unit", "máy"], "로 저장해 둔": ["saved via", "đã lưu bằng"], "목표 부하밀도": ["Target load density", "Mật độ tải mục tiêu"], "발열이 없으면": ["If there is no heat,", "Nếu không có nhiệt,"], "비워두면 권장": ["Blank = recommended", "Để trống = đề xuất"], "설계조건 추가": ["Add design condition", "Thêm điều kiện thiết kế"], "습도 허용편차": ["RH tolerance", "Dung sai độ ẩm"], "실 부하 요약": ["Room Load Summary", "Tóm tắt tải phòng"], "실 전체 기준": ["Whole room basis", "Theo toàn phòng"], "실내 냉방부하": ["Room cooling load", "Tải lạnh phòng"], "실내 부하밀도": ["Room load density", "Mật độ tải phòng"], "실내 잠열부하": ["Room latent load", "Tải ẩn phòng"], "실제 냉각용량": ["Actual cooling capacity", "Công suất lạnh thực tế"], "온도 허용편차": ["Temp. tolerance", "Dung sai nhiệt độ"], "온도편차 풍량": ["Temp. deviation airflow", "Lưu lượng theo dao động nhiệt"], "인체 현열부하": ["Person sensible load", "Tải hiện do người"], "적용 설계조건": ["Applied design condition", "Điều kiện thiết kế áp dụng"], "총 난방 용량": ["Total heating capacity", "Tổng công suất sưởi"], "총 냉방 용량": ["Total cooling capacity", "Tổng công suất lạnh"], "프로젝트 정보": ["Project Information", "Thông tin dự án"], "현재 입력값을": ["Current inputs", "Dữ liệu hiện tại"], "환기횟수 환산": ["equivalent air changes", "số lần trao đổi gió quy đổi"], "가습 안전율": ["Humidifier safety factor", "Hệ số an toàn tạo ẩm"], "공냉식 칠러": ["Air-cooled chiller", "Chiller giải nhiệt gió"], "공조기 대수": ["AHU quantity", "Số lượng AHU"], "공조기 용량": ["AHU Capacity", "Công suất AHU"], "기본값 복원": ["Reset Defaults", "Khôi phục mặc định"], "기준 벗어남": ["Out of range", "Ngoài tiêu chuẩn"], "기준값 적용": ["standard values applied", "áp dụng giá trị tiêu chuẩn"], "동절기 난방": ["Winter heating", "Sưởi mùa đông"], "배경 그래픽": ["Background graphics", "Đồ họa nền"], "배기 제거열": ["Exhaust heat removed", "Nhiệt khí thải lấy đi"], "보고서 출력": ["Print Report", "In báo cáo"], "부하 원단위": ["Load Unit Values", "Đơn vị tải"], "수냉식 칠러": ["Water-cooled chiller", "Chiller giải nhiệt nước"], "수량 여유율": ["quantity margin", "hệ số dự phòng số lượng"], "습공기 선도": ["Psychrometric Chart", "Biểu đồ trắc ẩm"], "실 전체 값": ["whole room value", "giá trị toàn phòng"], "엑셀 원본은": ["Original Excel uses", "Excel gốc dùng"], "으로 두세요": ["set to", "đặt bằng"], "을 누르세요": ["press", "nhấn"], "인당 외기량": ["OA per person", "Gió tươi mỗi người"], "입력값 복사": ["Copy Inputs", "Sao chép dữ liệu"], "제거열 차감": ["heat deduction", "trừ nhiệt"], "하절기 난방": ["Summer heating", "Sưởi mùa hè"], "함께 전달된": ["the delivered", "được gửi kèm"], "현열만 고려": ["sensible only", "chỉ tính tải hiện"], "가습 용량": ["Humidification", "Công suất tạo ẩm"], "검토 사항": ["Review Items", "Mục cần xem xét"], "결정 근거": ["governed by", "căn cứ quyết định"], "공정 배기": ["Process exhaust", "Khí thải công nghệ"], "기준 역산": ["back-calculated", "tính ngược"], "기준 이내": ["Within range", "Trong tiêu chuẩn"], "난방 용량": ["Heating capacity", "Công suất sưởi"], "냉각 방식": ["Cooling type", "Kiểu làm lạnh"], "냉각·제습": ["cooling · dehumidifying", "làm lạnh · tách ẩm"], "냉방 용량": ["Cooling capacity", "Công suất lạnh"], "단위 올림": ["rounded up", "làm tròn lên"], "당사 표준": ["Company standard", "Tiêu chuẩn công ty"], "대당 용량": ["Capacity per unit", "Công suất mỗi máy"], "발열 계수": ["heat factor", "hệ số tỏa nhiệt"], "복사해 둔": ["copied", "đã sao chép"], "부하 밀도": ["Load density", "Mật độ tải"], "부하계산서": ["Heat Load Calculation", "Bảng tính tải nhiệt"], "사내 기준": ["Company std.", "Tiêu chuẩn công ty"], "선정 수량": ["selected qty", "số lượng chọn"], "설계 조건": ["Design Conditions", "Điều kiện thiết kế"], "세로 기준": ["portrait", "khổ dọc"], "수정 가능": ["editable", "có thể sửa"], "실 사양의": ["Room spec", "Thông số phòng"], "실 전체를": ["whole room as", "toàn phòng như"], "여백 없음": ["no margins", "không lề"], "외기 비율": ["OA ratio", "Tỷ lệ gió tươi"], "용량 부족": ["capacity insufficient", "thiếu công suất"], "으로 복사": ["as", "dưới dạng"], "일반 배기": ["General exhaust", "Khí thải chung"], "일반룸 약": ["general room abt.", "phòng thường khoảng"], "임의 입력": ["assumed input", "nhập giả định"], "장비 추가": ["Add equipment", "Thêm thiết bị"], "재실 밀도": ["Occupant density", "Mật độ người"], "재실 인원": ["Occupants", "Số người"], "전체 기준": ["whole basis", "theo toàn bộ"], "정압 계산": ["Static pressure calc.", "Tính áp suất tĩnh"], "조건 삭제": ["Delete condition", "Xóa điều kiện"], "직접 입력": ["Manual", "Nhập tay"], "총 급기량": ["Total supply air", "Tổng gió cấp"], "추가 항목": ["Added item", "Hạng mục thêm"], "칠러 선정": ["Chiller Selection", "Chọn chiller"], "코일 출구": ["Coil leaving", "Ra khỏi coil"], "풍량 기준": ["Airflow Criteria", "Tiêu chí lưu lượng gió"], "필수 입력": ["Required", "Bắt buộc"], "필요 용량": ["Required capacity", "Công suất cần"], "환산 전력": ["Equivalent power", "Công suất quy đổi"], "회사 엑셀": ["company Excel", "Excel công ty"], "가습 후": ["After humidification", "Sau tạo ẩm"], "가압계수": ["pressurization factor", "hệ số tạo áp"], "가열 후": ["After heating", "Sau gia nhiệt"], "건구온도": ["Dry bulb", "Nhiệt độ khô"], "공정부하": ["Process load", "Tải công nghệ"], "공정장비": ["Process equip.", "Thiết bị công nghệ"], "난방부하": ["Heating load", "Tải sưởi"], "단위풍량": ["unit airflow", "lưu lượng đơn vị"], "대 기준": ["unit basis", "máy"], "대당 값": ["Per-unit value", "Giá trị mỗi máy"], "불러오기": ["Load", "Tải"], "상대습도": ["Relative humidity", "Độ ẩm tương đối"], "순환풍량": ["Circulation air", "Gió tuần hoàn"], "온도편차": ["Temp. deviation", "Dao động nhiệt"], "와 노점": ["and dew point", "và điểm sương"], "입력으로": ["Back to inputs", "Về nhập liệu"], "재열 후": ["after re-heat", "sau gia nhiệt lại"], "절대습도": ["Absolute humidity", "Độ ẩm tuyệt đối"], "총 가습": ["Total humidification", "Tổng tạo ẩm"], "총 냉방": ["total cooling", "tổng lạnh"], "코일출구": ["coil leaving", "ra coil"], "행 삭제": ["Delete row", "Xóa dòng"], "환기횟수": ["air changes", "số lần trao đổi gió"], "공냉식": ["Air-cooled", "Giải nhiệt gió"], "공조기": ["AHU", "AHU"], "급기량": ["Supply air", "Gió cấp"], "기준값": ["standard", "giá trị chuẩn"], "냉수량": ["Chilled water flow", "Lưu lượng nước lạnh"], "대 중": ["units total", "máy tổng"], "동절기": ["Winter", "Mùa đông"], "면적당": ["Per area", "Theo diện tích"], "보고서": ["Report", "Báo cáo"], "부하율": ["load rate", "hệ số tải"], "상태점": ["State point", "Điểm trạng thái"], "수냉식": ["Water-cooled", "Giải nhiệt nước"], "실용적": ["room volume", "thể tích phòng"], "안전율": ["safety factor", "hệ số an toàn"], "엔탈피": ["Enthalpy", "Enthalpy"], "여유율": ["Margin", "Dự phòng"], "외기량": ["Outdoor air", "Gió tươi"], "일반룸": ["General room", "Phòng thường"], "일반실": ["General room", "Phòng thường"], "입력값": ["Inputs", "Dữ liệu"], "작성일": ["Date", "Ngày lập"], "장비명": ["Equipment", "Thiết bị"], "조건명": ["Condition name", "Tên điều kiện"], "천장고": ["Ceiling height", "Chiều cao trần"], "청정도": ["Cleanliness", "Độ sạch"], "청회색": ["blue-gray", "xám xanh"], "클린룸": ["Clean room", "Phòng sạch"], "풍량을": ["airflow by", "lưu lượng chia"], "하절기": ["Summer", "Mùa hè"], "환산값": ["Conversion", "Giá trị quy đổi"], "가습": ["Humidification", "Tạo ẩm"], "가열": ["Heating", "Gia nhiệt"], "건물": ["Building", "Tòa nhà"], "검토": ["Checked", "Kiểm tra"], "결과": ["Result", "Kết quả"], "계수": ["factor", "hệ số"], "고정": ["Fixed", "Cố định"], "곡선": ["curves", "đường cong"], "권장": ["Recommended", "Đề xuất"], "급기": ["Supply", "Gió cấp"], "기본": ["Default", "Mặc định"], "기준": ["basis", "theo"], "길이": ["length", "chiều dài"], "냉각": ["Cooling", "Làm lạnh"], "노점": ["dew point", "điểm sương"], "단위": ["unit", "đơn vị"], "대당": ["Per unit", "Mỗi máy"], "대비": ["ratio to", "so với"], "대수": ["Qty", "Số lượng"], "면적": ["Area", "Diện tích"], "목표": ["Target", "Mục tiêu"], "발열": ["Heat", "Nhiệt tỏa"], "배기": ["Exhaust", "Khí thải"], "부족": ["Insufficient", "Thiếu"], "부하": ["Load", "Tải"], "비율": ["ratio", "tỷ lệ"], "사양": ["Spec", "Thông số"], "선정": ["Selected", "Chọn"], "세로": ["portrait", "dọc"], "소계": ["Subtotal", "Tổng phụ"], "수량": ["Qty", "Số lượng"], "수정": ["Edit", "Sửa"], "승인": ["Approved", "Phê duyệt"], "실내": ["Room", "Phòng"], "실명": ["Room name", "Tên phòng"], "역산": ["Back-calc.", "Tính ngược"], "외기": ["Outdoor air", "Gió tươi"], "인쇄": ["Print", "In"], "인원": ["persons", "người"], "인체": ["Person", "Người"], "임의": ["assumed", "giả định"], "입력": ["Input", "Nhập"], "자동": ["Auto", "Tự động"], "작성": ["Prepared", "Lập"], "재열": ["re-heat", "gia nhiệt lại"], "저장": ["Save", "Lưu"], "적용": ["Applied", "Áp dụng"], "전력": ["Power", "Công suất"], "전체": ["Total", "Toàn bộ"], "점선": ["dotted", "nét đứt"], "정압": ["Static pressure", "Áp suất tĩnh"], "조도": ["Illuminance", "Độ rọi"], "조명": ["Lighting", "Chiếu sáng"], "참고": ["Ref.", "Tham khảo"], "참조": ["see", "xem"], "최소": ["Min.", "Tối thiểu"], "최종": ["Final", "Cuối"], "충족": ["OK", "Đạt"], "취소": ["Cancel", "Hủy"], "풍량": ["Airflow", "Lưu lượng gió"], "필요": ["Required", "Cần"], "합계": ["Total", "Tổng"], "항목": ["Item", "Hạng mục"], "혼합": ["Mixed", "Hòa trộn"], "환기": ["Return", "Gió hồi"], "히팅": ["Heating", "Sưởi"], "대": ["units", "máy"], "동": ["Bldg.", "Tòa"], "를": ["", ""], "실": ["Room", "Phòng"], "을": ["", ""], "인": ["persons", "người"], "층": ["Floor", "Tầng"], "회": ["times", "lần"]};
+const I18N = {"체적":["Volume","Thể tích"],"룸별 입력":["input per room", "nhập theo phòng"],"룸 추가":["Add room", "Thêm phòng"],"룸 1개":["1 room", "1 phòng"],"줄":["row", "dòng"],"룸 추가 시 같은 방법으로 계산 후 합산":["added rooms calculated the same way & summed", "phòng thêm tính tương tự & cộng tổng"],"설계조건":["Design cond.", "Điều kiện TK"],"습도편차":["RH dev.", "Dung sai ẩm"],"룸별 계산 결과":["Results per room", "Kết quả theo phòng"],"냉방부하":["Cooling load", "Tải lạnh"],"밀도":["Density", "Mật độ"],"근거":["Basis", "Căn cứ"],"룸별":["per room", "theo phòng"],"회색 칸":["Grey cells", "Ô xám"],"당사 표준 자동값":["company-standard auto value", "giá trị tự động tiêu chuẩn"],"숫자를 입력하면 직접 입력값":["type a number to override", "nhập số để ghi đè"],"지우면 자동으로 복귀":["clear to revert", "xóa để trở về tự động"],"룸마다 같은 방법으로 계산 후 공조기":["each room calculated the same way, then summed per AHU", "mỗi phòng tính như nhau rồi cộng theo AHU"],"합계로 합산":["", ""],"파란 칸이 선정 기준":["blue cell = governing criterion", "ô xanh = tiêu chí chọn"],"공조기":["AHU", "AHU"],"룸 복사":["Copy room", "Sao chép phòng"],"룸 삭제":["Delete room", "Xóa phòng"],"공정 장비 목록":["Process equipment list", "Danh sách thiết bị"],"장비 목록":["Equipment list", "Danh sách thiết bị"],"면적당 기준":["Per-area basis", "Theo diện tích"],"방식":["Method", "Phương pháp"],"재실밀도":["Occ. density", "Mật độ người"],"재실인원":["Occupants", "Số người"],"목표 밀도":["Target density", "Mật độ mục tiêu"],"가압 계수":["Press. factor", "Hệ số áp"],"인 외기":["OA/person", "gió tươi/người"],"온도편차 환기":["Temp-dev. ACH", "ACH dao động nhiệt"],"조명 할증":["Light factor", "Hệ số chiếu sáng"],"발열 계수":["Heat factor", "Hệ số nhiệt"],"총 배기":["Total exhaust", "Tổng khí thải"],"급기량 선정 과정":["Supply air selection", "Chọn lưu lượng gió cấp"],"공조 장비":["AHU","AHU"],"구역":["area","khu vực"],"코팅실 외":["coating room etc.","phòng phủ v.v."],"예":["e.g.","vd."],"입력값 저장":["Save Inputs","Lưu dữ liệu"],"입력값을 파일로 저장했습니다":["Inputs saved to file","Đã lưu dữ liệu ra tệp"],"현열 풍량 산정 시 잠열부하 불필요":["latent load not needed for sensible airflow","không cần tải ẩn khi tính lưu lượng hiện"],"냉방열원 기준":["Cooling source","Nguồn lạnh"],"표준과 다름":["differs from standard","khác tiêu chuẩn"],"현재":["Current","Hiện tại"],"히팅":["Heating","Sưởi"],"사용":["use","dùng"],"미사용":["Not used","Không dùng"],"기준 배기량":["based exhaust","khí thải theo"],"적용값":["applied","áp dụng"],"총 배기량":["Total exhaust","Tổng khí thải"],"배기량 미상 시 적용":["If exhaust unknown:","Khi chưa biết lượng khí thải:"],"기준 배기":["based exhaust","khí thải theo"],"총 배기":["Total exhaust","Tổng khí thải"],"미적용":["Not applied","Không áp dụng"],"공조 풍량 배분":["Air Flow Distribution","Phân phối lưu lượng gió"],"풍량은 실 전체 기준":["Airflow: whole room basis","Lưu lượng: theo toàn phòng"],"상태점과 선도는 공조기":["State points & chart: per","Điểm trạng thái & biểu đồ: mỗi"],"실 구분":["Room type","Loại phòng"],"난방":["Heating","Sưởi"],"칠러":["Chiller","Chiller"],"사내":["Company","Công ty"],"대당 용량을 입력하거나 위 목록에서 고르면 수량과 여유율이 계산됩니다": ["Enter the unit capacity or pick one from the list to calculate quantity and margin", "Nhập công suất mỗi máy hoặc chọn trong danh sách để tính số lượng và hệ số dự phòng"], "선택한 설계조건을 찾을 수 없어 첫 번째 조건을 적용했습니다": ["Selected design condition not found; the first condition was applied", "Không tìm thấy điều kiện thiết kế đã chọn; đã áp dụng điều kiện đầu tiên"], "이 미리보기 화면에서는 인쇄가 막혀 있을 수 있습니다": ["Printing may be blocked in this preview", "Chức năng in có thể bị chặn trong màn hình xem trước này"], "가 건물·인체·조명 부하만으로 이미 초과됩니다": ["is already exceeded by building, person and lighting loads alone", "đã bị vượt chỉ bởi tải tòa nhà, người và chiếu sáng"], "필수 입력값을 넣으면 습공기 선도가 표시됩니다": ["Enter the required inputs to show the psychrometric chart", "Nhập các giá trị bắt buộc để hiển thị biểu đồ trắc ẩm"], "옵션을 켜면 강조 셀 색이 함께 출력됩니다": ["option to print highlighted cell colors", "để in cả màu ô được tô"], "면적 등 필수 입력값을 먼저 넣어주세요": ["Please enter the required inputs (area, etc.) first", "Vui lòng nhập trước các giá trị bắt buộc (diện tích, v.v.)"], "추가 조건은 절대습도·노점온도를 비우면": ["For added conditions, leave AH / dew point blank to", "Với điều kiện bổ sung, để trống độ ẩm tuyệt đối / điểm sương thì"], "로 만든 내용을 그대로 붙여넣으세요": ["and paste the text as is", "và dán nguyên nội dung"], "기준값 자동 계산으로 되돌렸습니다": ["Reverted to automatic standard value", "Đã trở về giá trị tiêu chuẩn tự động"], "상자 안 내용을 직접 복사하세요": ["Please copy the text in the box manually", "Vui lòng tự sao chép nội dung trong ô"], "입력하면 계산 결과가 표시됩니다": ["to see the calculation results", "để hiển thị kết quả tính toán"], "기준값 자동 계산으로 되돌리기": ["Revert to automatic standard value", "Trở về giá trị tiêu chuẩn tự động"], "입력값을 붙여넣어 불러옵니다": ["Paste copied inputs to load them", "Dán dữ liệu đã sao chép để tải"], "생산설비 전기용량을 알 때": ["When equipment power is known", "Khi biết công suất điện thiết bị"], "을 클립보드에 복사했습니다": ["copied to clipboard", "đã sao chép vào bộ nhớ tạm"], "자동 복사가 막혀 있습니다": ["Automatic copy is blocked.", "Sao chép tự động bị chặn."], "대 기준 공기 상태 변화": ["unit basis — air state changes", "máy — thay đổi trạng thái không khí"], "면적·층고·청정도·온습도": ["Area · height · cleanliness · temp/RH", "Diện tích · chiều cao · độ sạch · nhiệt/ẩm"], "에서 선택할 수 있습니다": ["can be selected there", "có thể chọn tại đó"], "온도보다 낮거나 같습니다": ["temperature or lower", "hoặc thấp hơn nhiệt độ"], "장비 용량 미상 시 임의": ["If equipment capacity is unknown, use assumed", "Khi chưa biết công suất thiết bị, dùng giá trị giả định"], "형식이 올바르지 않습니다": ["format is invalid", "định dạng không hợp lệ"], "환산값은 직접 수정 가능": ["conversion value editable", "có thể sửa giá trị quy đổi"], "기본값으로 복원했습니다": ["defaults restored", "đã khôi phục mặc định"], "설계조건을 추가했습니다": ["Design condition added", "Đã thêm điều kiện thiết kế"], "공정배기 제거열 차감": ["Deduct process exhaust heat", "Trừ nhiệt thải khí công nghệ"], "기본값으로 되돌립니다": ["defaults", "về mặc định"], "기준표에서 자동 입력": ["Auto-filled from standard tables", "Tự động theo bảng tiêu chuẩn"], "냉방 용량 환산 기준": ["Cooling capacity basis", "Cơ sở quy đổi công suất lạnh"], "로 면적당 부하 확인": ["to check load per area", "để kiểm tra tải trên diện tích"], "실내온도가 코일 출구": ["Room temperature is at coil leaving", "Nhiệt độ phòng bằng nhiệt độ ra khỏi coil"], "입력 검토 사항 없음": ["No input issues", "Không có vấn đề đầu vào"], "입력값을 불러왔습니다": ["Inputs loaded", "Đã tải dữ liệu"], "장비 용량을 모를 때": ["Equipment capacity unknown", "Khi chưa biết công suất thiết bị"], "청정도 유지 환기횟수": ["Air changes for cleanliness", "Số lần trao đổi gió theo độ sạch"], "공정부하 산정 방식": ["Process load method", "Phương pháp tính tải công nghệ"], "대 기준으로 재계산": ["units, recalculated per unit", "máy, tính lại cho mỗi máy"], "로 자동 계산됩니다": ["are calculated automatically", "sẽ được tính tự động"], "보고서 표지·머리말": ["Report cover · header", "Bìa · tiêu đề báo cáo"], "설계조건 추가 가능": ["conditions can be added", "có thể thêm điều kiện"], "수정한 항목은 유지": ["edited items kept", "giữ các mục đã sửa"], "외기 및 설계 조건": ["Outdoor & Design Conditions", "Điều kiện ngoài trời & thiết kế"], "지우면 권장값 적용": ["clear to use recommended", "xóa để dùng giá trị đề xuất"], "환기횟수·가압·외기": ["Air changes · pressurization · OA", "Trao đổi gió · tạo áp · gió tươi"], "로 부하밀도 확인": ["to check load density", "để kiểm tra mật độ tải"], "면적당 부하 기준": ["Load per area basis", "Theo tải trên diện tích"], "배경 그래픽 켜기": ["background graphics on", "bật đồ họa nền"], "부하가 음수입니다": ["load is negative", "tải bị âm"], "온도편차 환기횟수": ["Air changes for temp. deviation", "Trao đổi gió theo dao động nhiệt"], "으로 계산했습니다": ["was used", "đã được dùng"], "인쇄 대화상자에서": ["In the print dialog, turn on", "Trong hộp thoại in, bật"], "입력을 확인하세요": ["Check the inputs", "Kiểm tra dữ liệu nhập"], "조명부하 할증계수": ["Lighting load factor", "Hệ số tăng tải chiếu sáng"], "회사 표준 고정값": ["Company standard (fixed)", "Tiêu chuẩn công ty (cố định)"], "값을 직접 수정": ["Edit value manually", "Sửa giá trị thủ công"], "건물·인체·조명": ["Building · person · lighting", "Tòa nhà · người · chiếu sáng"], "공정 장비 발열": ["Process Equipment Heat", "Nhiệt thiết bị công nghệ"], "냉방 용량 환산": ["Cooling conversion", "Quy đổi công suất lạnh"], "대당 필요 용량": ["Required per unit", "Công suất cần mỗi máy"], "실내부하 안전율": ["Room load safety factor", "Hệ số an toàn tải phòng"], "에서 직접 열어": ["directly and press", "trực tiếp và nhấn"], "을 붙여넣으세요": ["paste here", "dán vào đây"], "입력값 불러오기": ["Load Inputs", "Tải dữ liệu"], "자동 산정 수량": ["Auto quantity", "Số lượng tự động"], "장비 전력 입력": ["Equipment power input", "Nhập công suất thiết bị"], "장비 행은 최소": ["At least", "Cần tối thiểu"], "정압 항목 추가": ["Add static pressure item", "Thêm hạng mục áp suất tĩnh"], "조명부하 원단위": ["Lighting load unit", "Đơn vị tải chiếu sáng"], "최종 선정 기준": ["final selection basis", "theo lựa chọn cuối"], "최종 선정 수량": ["Final quantity", "Số lượng chọn cuối"], "파일을 브라우저": ["file in a browser", "tệp trong trình duyệt"], "필수 입력 누락": ["Missing required input", "Thiếu dữ liệu bắt buộc"], "가압풍량 계수": ["Pressurization factor", "Hệ số gió tạo áp"], "개 필요합니다": ["row is required", "dòng là bắt buộc"], "건물 현열부하": ["Building sensible load", "Tải hiện tòa nhà"], "공정부하 산정": ["Process load method", "Cách tính tải công nghệ"], "공정부하 합계": ["Process load total", "Tổng tải công nghệ"], "노점 건구온도": ["Dew point DB", "Nhiệt độ khô điểm sương"], "노점 상대습도": ["Dew point RH", "Độ ẩm tương đối điểm sương"], "대로 나눈 뒤": ["units, then", "máy, sau đó"], "대로 본 용량": ["unit", "máy"], "로 저장해 둔": ["saved via", "đã lưu bằng"], "목표 부하밀도": ["Target load density", "Mật độ tải mục tiêu"], "발열이 없으면": ["If there is no heat,", "Nếu không có nhiệt,"], "비워두면 권장": ["Blank = recommended", "Để trống = đề xuất"], "설계조건 추가": ["Add design condition", "Thêm điều kiện thiết kế"], "습도 허용편차": ["RH tolerance", "Dung sai độ ẩm"], "실 부하 요약": ["Room Load Summary", "Tóm tắt tải phòng"], "실 전체 기준": ["Whole room basis", "Theo toàn phòng"], "실내 냉방부하": ["Room cooling load", "Tải lạnh phòng"], "실내 부하밀도": ["Room load density", "Mật độ tải phòng"], "실내 잠열부하": ["Room latent load", "Tải ẩn phòng"], "실제 냉각용량": ["Actual cooling capacity", "Công suất lạnh thực tế"], "온도 허용편차": ["Temp. tolerance", "Dung sai nhiệt độ"], "온도편차 풍량": ["Temp. deviation airflow", "Lưu lượng theo dao động nhiệt"], "인체 현열부하": ["Person sensible load", "Tải hiện do người"], "적용 설계조건": ["Applied design condition", "Điều kiện thiết kế áp dụng"], "총 난방 용량": ["Total heating capacity", "Tổng công suất sưởi"], "총 냉방 용량": ["Total cooling capacity", "Tổng công suất lạnh"], "프로젝트 정보": ["Project Information", "Thông tin dự án"], "현재 입력값을": ["Current inputs", "Dữ liệu hiện tại"], "환기횟수 환산": ["equivalent air changes", "số lần trao đổi gió quy đổi"], "가습 안전율": ["Humidifier safety factor", "Hệ số an toàn tạo ẩm"], "공냉식 칠러": ["Air-cooled chiller", "Chiller giải nhiệt gió"], "공조기 대수": ["AHU quantity", "Số lượng AHU"], "공조기 용량": ["AHU Capacity", "Công suất AHU"], "기본값 복원": ["Reset Defaults", "Khôi phục mặc định"], "기준 벗어남": ["Out of range", "Ngoài tiêu chuẩn"], "기준값 적용": ["standard values applied", "áp dụng giá trị tiêu chuẩn"], "동절기 난방": ["Winter heating", "Sưởi mùa đông"], "배경 그래픽": ["Background graphics", "Đồ họa nền"], "배기 제거열": ["Exhaust heat removed", "Nhiệt khí thải lấy đi"], "보고서 출력": ["Print Report", "In báo cáo"], "부하 원단위": ["Load Unit Values", "Đơn vị tải"], "수냉식 칠러": ["Water-cooled chiller", "Chiller giải nhiệt nước"], "수량 여유율": ["quantity margin", "hệ số dự phòng số lượng"], "습공기 선도": ["Psychrometric Chart", "Biểu đồ trắc ẩm"], "실 전체 값": ["whole room value", "giá trị toàn phòng"], "엑셀 원본은": ["Original Excel uses", "Excel gốc dùng"], "으로 두세요": ["set to", "đặt bằng"], "을 누르세요": ["press", "nhấn"], "인당 외기량": ["OA per person", "Gió tươi mỗi người"], "입력값 복사": ["Copy Inputs", "Sao chép dữ liệu"], "제거열 차감": ["heat deduction", "trừ nhiệt"], "하절기 난방": ["Summer heating", "Sưởi mùa hè"], "함께 전달된": ["the delivered", "được gửi kèm"], "현열만 고려": ["sensible only", "chỉ tính tải hiện"], "가습 용량": ["Humidification", "Công suất tạo ẩm"], "검토 사항": ["Review Items", "Mục cần xem xét"], "결정 근거": ["governed by", "căn cứ quyết định"], "공정 배기": ["Process exhaust", "Khí thải công nghệ"], "기준 역산": ["back-calculated", "tính ngược"], "기준 이내": ["Within range", "Trong tiêu chuẩn"], "난방 용량": ["Heating capacity", "Công suất sưởi"], "냉각 방식": ["Cooling type", "Kiểu làm lạnh"], "냉각·제습": ["cooling · dehumidifying", "làm lạnh · tách ẩm"], "냉방 용량": ["Cooling capacity", "Công suất lạnh"], "단위 올림": ["rounded up", "làm tròn lên"], "당사 표준": ["Company standard", "Tiêu chuẩn công ty"], "대당 용량": ["Capacity per unit", "Công suất mỗi máy"], "발열 계수": ["heat factor", "hệ số tỏa nhiệt"], "복사해 둔": ["copied", "đã sao chép"], "부하 밀도": ["Load density", "Mật độ tải"], "부하계산서": ["Heat Load Calculation", "Bảng tính tải nhiệt"], "사내 기준": ["Company std.", "Tiêu chuẩn công ty"], "선정 수량": ["selected qty", "số lượng chọn"], "설계 조건": ["Design Conditions", "Điều kiện thiết kế"], "세로 기준": ["portrait", "khổ dọc"], "수정 가능": ["editable", "có thể sửa"], "실 사양의": ["Room spec", "Thông số phòng"], "실 전체를": ["whole room as", "toàn phòng như"], "여백 없음": ["no margins", "không lề"], "외기 비율": ["OA ratio", "Tỷ lệ gió tươi"], "용량 부족": ["capacity insufficient", "thiếu công suất"], "으로 복사": ["as", "dưới dạng"], "일반 배기": ["General exhaust", "Khí thải chung"], "일반룸 약": ["general room abt.", "phòng thường khoảng"], "임의 입력": ["assumed input", "nhập giả định"], "장비 추가": ["Add equipment", "Thêm thiết bị"], "재실 밀도": ["Occupant density", "Mật độ người"], "재실 인원": ["Occupants", "Số người"], "전체 기준": ["whole basis", "theo toàn bộ"], "정압 계산": ["Static pressure calc.", "Tính áp suất tĩnh"], "조건 삭제": ["Delete condition", "Xóa điều kiện"], "직접 입력": ["Manual", "Nhập tay"], "총 급기량": ["Total supply air", "Tổng gió cấp"], "추가 항목": ["Added item", "Hạng mục thêm"], "칠러 선정": ["Chiller Selection", "Chọn chiller"], "코일 출구": ["Coil leaving", "Ra khỏi coil"], "풍량 기준": ["Airflow Criteria", "Tiêu chí lưu lượng gió"], "필수 입력": ["Required", "Bắt buộc"], "필요 용량": ["Required capacity", "Công suất cần"], "환산 전력": ["Equivalent power", "Công suất quy đổi"], "회사 엑셀": ["company Excel", "Excel công ty"], "가습 후": ["After humidification", "Sau tạo ẩm"], "가압계수": ["pressurization factor", "hệ số tạo áp"], "가열 후": ["After heating", "Sau gia nhiệt"], "건구온도": ["Dry bulb", "Nhiệt độ khô"], "공정부하": ["Process load", "Tải công nghệ"], "공정장비": ["Process equip.", "Thiết bị công nghệ"], "난방부하": ["Heating load", "Tải sưởi"], "단위풍량": ["unit airflow", "lưu lượng đơn vị"], "대 기준": ["unit basis", "máy"], "대당 값": ["Per-unit value", "Giá trị mỗi máy"], "불러오기": ["Load", "Tải"], "상대습도": ["Relative humidity", "Độ ẩm tương đối"], "순환풍량": ["Circulation air", "Gió tuần hoàn"], "온도편차": ["Temp. deviation", "Dao động nhiệt"], "와 노점": ["and dew point", "và điểm sương"], "입력으로": ["Back to inputs", "Về nhập liệu"], "재열 후": ["after re-heat", "sau gia nhiệt lại"], "절대습도": ["Absolute humidity", "Độ ẩm tuyệt đối"], "총 가습": ["Total humidification", "Tổng tạo ẩm"], "총 냉방": ["total cooling", "tổng lạnh"], "코일출구": ["coil leaving", "ra coil"], "행 삭제": ["Delete row", "Xóa dòng"], "환기횟수": ["air changes", "số lần trao đổi gió"], "공냉식": ["Air-cooled", "Giải nhiệt gió"], "공조기": ["AHU", "AHU"], "급기량": ["Supply air", "Gió cấp"], "기준값": ["standard", "giá trị chuẩn"], "냉수량": ["Chilled water flow", "Lưu lượng nước lạnh"], "대 중": ["units total", "máy tổng"], "동절기": ["Winter", "Mùa đông"], "면적당": ["Per area", "Theo diện tích"], "보고서": ["Report", "Báo cáo"], "부하율": ["load rate", "hệ số tải"], "상태점": ["State point", "Điểm trạng thái"], "수냉식": ["Water-cooled", "Giải nhiệt nước"], "실용적": ["room volume", "thể tích phòng"], "안전율": ["safety factor", "hệ số an toàn"], "엔탈피": ["Enthalpy", "Enthalpy"], "여유율": ["Margin", "Dự phòng"], "외기량": ["Outdoor air", "Gió tươi"], "일반룸": ["General room", "Phòng thường"], "일반실": ["General room", "Phòng thường"], "입력값": ["Inputs", "Dữ liệu"], "작성일": ["Date", "Ngày lập"], "장비명": ["Equipment", "Thiết bị"], "조건명": ["Condition name", "Tên điều kiện"], "천장고": ["Ceiling height", "Chiều cao trần"], "청정도": ["Cleanliness", "Độ sạch"], "청회색": ["blue-gray", "xám xanh"], "클린룸": ["Clean room", "Phòng sạch"], "풍량을": ["airflow by", "lưu lượng chia"], "하절기": ["Summer", "Mùa hè"], "환산값": ["Conversion", "Giá trị quy đổi"], "가습": ["Humidification", "Tạo ẩm"], "가열": ["Heating", "Gia nhiệt"], "건물": ["Building", "Tòa nhà"], "검토": ["Checked", "Kiểm tra"], "결과": ["Result", "Kết quả"], "계수": ["factor", "hệ số"], "고정": ["Fixed", "Cố định"], "곡선": ["curves", "đường cong"], "권장": ["Recommended", "Đề xuất"], "급기": ["Supply", "Gió cấp"], "기본": ["Default", "Mặc định"], "기준": ["basis", "theo"], "길이": ["length", "chiều dài"], "냉각": ["Cooling", "Làm lạnh"], "노점": ["dew point", "điểm sương"], "단위": ["unit", "đơn vị"], "대당": ["Per unit", "Mỗi máy"], "대비": ["ratio to", "so với"], "대수": ["Qty", "Số lượng"], "면적": ["Area", "Diện tích"], "목표": ["Target", "Mục tiêu"], "발열": ["Heat", "Nhiệt tỏa"], "배기": ["Exhaust", "Khí thải"], "부족": ["Insufficient", "Thiếu"], "부하": ["Load", "Tải"], "비율": ["ratio", "tỷ lệ"], "사양": ["Spec", "Thông số"], "선정": ["Selected", "Chọn"], "세로": ["portrait", "dọc"], "소계": ["Subtotal", "Tổng phụ"], "수량": ["Qty", "Số lượng"], "수정": ["Edit", "Sửa"], "승인": ["Approved", "Phê duyệt"], "실내": ["Room", "Phòng"], "실명": ["Room name", "Tên phòng"], "역산": ["Back-calc.", "Tính ngược"], "외기": ["Outdoor air", "Gió tươi"], "인쇄": ["Print", "In"], "인원": ["persons", "người"], "인체": ["Person", "Người"], "임의": ["assumed", "giả định"], "입력": ["Input", "Nhập"], "자동": ["Auto", "Tự động"], "작성": ["Prepared", "Lập"], "재열": ["re-heat", "gia nhiệt lại"], "저장": ["Save", "Lưu"], "적용": ["Applied", "Áp dụng"], "전력": ["Power", "Công suất"], "전체": ["Total", "Toàn bộ"], "점선": ["dotted", "nét đứt"], "정압": ["Static pressure", "Áp suất tĩnh"], "조도": ["Illuminance", "Độ rọi"], "조명": ["Lighting", "Chiếu sáng"], "참고": ["Ref.", "Tham khảo"], "참조": ["see", "xem"], "최소": ["Min.", "Tối thiểu"], "최종": ["Final", "Cuối"], "충족": ["OK", "Đạt"], "취소": ["Cancel", "Hủy"], "풍량": ["Airflow", "Lưu lượng gió"], "필요": ["Required", "Cần"], "합계": ["Total", "Tổng"], "항목": ["Item", "Hạng mục"], "혼합": ["Mixed", "Hòa trộn"], "환기": ["Return", "Gió hồi"], "히팅": ["Heating", "Sưởi"], "대": ["units", "máy"], "동": ["Bldg.", "Tòa"], "를": ["", ""], "실": ["Room", "Phòng"], "을": ["", ""], "인": ["persons", "người"], "층": ["Floor", "Tầng"], "회": ["times", "lần"]};
 const PHRASES = {
   '클린룸 HVAC 부하계산서': ['Clean Room HVAC Load Calculation','Bảng tính tải HVAC phòng sạch'],
   '실(ROOM) 사양': ['Room Spec','Thông số phòng'],
+  '실(ROOM) 사양 · 룸별 입력': ['Room Spec · input per room','Thông số phòng · nhập theo phòng'],
 };
 let UI = { lang:'ko', skin:'black' };
 try{ const u=JSON.parse(localStorage.getItem('crLoadCalc.ui')||'{}'); Object.assign(UI,u); }catch(e){}
@@ -631,54 +690,36 @@ document.addEventListener('click', e=>{
   else { UI.skin=b.dataset.skin; applyUI(); }
 });
 
-// ---------- reference tables (from Excel 2-1A / 2-2 reference data) ----------
-const CLASS_TBL = {
-  '10':     {label:'Class 10',     ach:200, achRange:'200~600', pa:2.5},
-  '100':    {label:'Class 100',    ach:200, achRange:'200~600', pa:2.0},
-  '1000':   {label:'Class 1,000',  ach:50,  achRange:'50~70',   pa:1.5},
-  '5000':   {label:'Class 5,000',          ach:35,  achRange:'35',      pa:1.5},
-  '10000':  {label:'Class 10,000', ach:30,  achRange:'30~40',   pa:1.5},
-  '100000': {label:'Class 100,000',ach:20,  achRange:'20~30',   pa:1.0},
-  'GR':     {label:'일반실 (G.R)',          ach:8,   achRange:'8',       pa:0.5, fa:25},
-};
-const LUX_TBL = {300:15, 500:20, 700:25};
+// ---------- reference tables (UI) — CLASS/LUX/TEMPTOL tables live in the engine ----------
 const CHILLER_RT = [115,135,170,195,210,245,280,295,335,380,420,480];   // air cooled screw chiller, fixed speed (reference)
 const WC_CHILLER_RT = [600,650,700,750,800,850,900,950,1000,1100,1200,1300]; // water cooled chiller CCWF***EV (reference)
 const CH_TYPES = {
   air:   {name:'공냉식 칠러', rtK:'chillerRT', qK:'chillerQty', list:CHILLER_RT, listLabel:'Air cooled screw chiller — fixed speed (RT)', tKey:'chAir', en:'AIR COOLED CHILLER'},
   water: {name:'수냉식 칠러', rtK:'wcChillerRT', qK:'wcChillerQty', list:WC_CHILLER_RT, listLabel:'Water cooled chiller — CCWF***EV (RT)', tKey:'chWater', en:'WATER COOLED CHILLER'},
 };
-const TEMPTOL_TBL = {3:10, 2:15, 1:25, 0.5:60, 0.1:120};
-const personSHfor = t => Math.round(118 - 3*(t-20));   // 20℃:118, 22℃:112, 24℃:106 kcal/h·인
-// Values derived from 1-1 ROOM SPEC — shown grey (auto) unless the user presses 수정
-const roomDB = () => { const c=allRoomConds(S).find(x=>x.id===S.condId)||DESIGN_CONDITIONS.rooms[0]; return +c.db; };
-const clsOf = () => CLASS_TBL[S.cleanClass]||CLASS_TBL['100000'];
-const isGR = () => S.roomType==='GR';   // 실 구분 (CLEAN ROOM / GENERAL ROOM) — drives P.A factor, F.A per person, target density
-const AUTO = {
-  persons:     {val:()=>Math.round(S.area*S.personDensity), basis:()=>`면적 ${fmt(S.area)} m² × ${S.personDensity} 인/m²`},
-  lightUnit:   {val:()=>LUX_TBL[S.illum]??20,               basis:()=>`조도 ${S.illum} lux 기준 (300:15 / 500:20 / 700:25)`},
-  personSH:    {val:()=>personSHfor(roomDB()),               basis:()=>`실내 ${roomDB()}℃ 기준 (20℃ 118 / 22℃ 112 / 24℃ 106)`},
-  ach:         {val:()=>clsOf().ach,                         basis:()=>`${clsOf().label} 기준 (${clsOf().achRange}회)`},
-  paFactor:    {val:()=>isGR()?CLASS_TBL.GR.pa:clsOf().pa,  basis:()=>isGR()?`GENERAL ROOM 기준 (×${CLASS_TBL.GR.pa})`:`CLEAN ROOM · ${clsOf().label} 기준`},
-  faPerPerson: {val:()=>isGR()?25:40,                        basis:()=>`${isGR()?'G/R':'C/R'} 기준 (C/R 40, G/R 25) · 실 구분 기준`},
-  tempACH:     {val:()=>TEMPTOL_TBL[S.roomTtol]??15,         basis:()=>`온도편차 ±${S.roomTtol}℃ 기준`},
-  fanLoad:     {val:()=>R&&R.bfu?R.bfu.fanCalc:0,           basis:()=>R&&R.bfu?`BFU ${R.bfu.qty}대 × ${fmt(S.bfuW)} W × ${S.bfuFactor} × 0.86`:''},
-  bfuQty:      {val:()=>R&&R.bfu?R.bfu.auto:0,              basis:()=>R&&R.air2?`(C.A ${fmt(R.air2.ca)} − S.A ${fmt(R.air2.saFinal)}) ÷ ${S.bfuCMM} CMM ÷ 60 × ${S.bfuSF}`:''},
-  hfbQty:      {val:()=>R&&R.bfu?R.bfu.hfb:0,               basis:()=>R&&R.air2?`S.A ${fmt(R.air2.saFinal)} ÷ ${S.hfbCMM} CMM ÷ 60 × ${S.hfbSF}`:''},
-  targetDensity:{val:()=>isGR()?100:160,        basis:()=>`${isGR()?'일반룸':'클린룸'} 사내 기준 (클린룸 150~200 / 일반룸 약 100)`},
+const AUTO_BASIS = {
+  persons: r=>`면적 × 재실밀도 ${r.personDensity} 인/m²`, lightUnit: r=>`조도 ${r.illum} lux (300:15 / 500:20 / 700:25)`,
+  personSH: r=>`실내온도 기준 (20℃ 118 / 22℃ 112 / 24℃ 106)`, ach: r=>`${(CLASS_TBL[r.cleanClass]||{}).label} (${(CLASS_TBL[r.cleanClass]||{}).achRange}회)`,
+  paFactor: r=>r.roomType==='GR'?'GENERAL ROOM ×0.5':`CLEAN ROOM · ${(CLASS_TBL[r.cleanClass]||{}).label}`, faPerPerson: r=>'C/R 40 · G/R 25 CMH/인',
+  tempACH: r=>`온도편차 ±${r.roomTtol}℃`, targetDensity: r=>'클린룸 160 (150~200) · 일반룸 100',
+  bfuQty: r=>'(C.A − S.A) ÷ BFU CMM ÷ 60 × 여유율', fanLoad: r=>'BFU 수량 × 전력 × 계수 × 0.86', hfbQty: r=>'S.A ÷ HFB CMM ÷ 60 × 여유율',
+  densityKw: r=>'목표 부하밀도에서 역산 (A/C 부하 ÷ 부하율 ÷ 860)',
 };
-function applyAuto(){
-  S.manual = S.manual||{};
-  for(const k in AUTO) if(!S.manual[k]) S[k]=AUTO[k].val();
-  S.personOverride = S.manual.persons ? (+S.persons||0) : 0;
-  S.densityKwManual = S.densityKw!=='' && S.densityKw!=null;
-  S.fanAuto = !S.manual.fanLoad; S.bfuManual = !!S.manual.bfuQty; S.hfbManual = !!S.manual.hfbQty;
-}
+const isGRr = r => r.roomType==='GR';
+const densStd = r => isGRr(r) ? '일반룸 약 100' : '클린룸 150~200';
+const densOut = (r,d) => isGRr(r) ? d>130 : (d<150||d>200);
 
 // ---------- state ----------
 const clone = o => JSON.parse(JSON.stringify(o));
+function normState(o){
+  const m = migrateState(clone(o||{}));
+  const n = Object.assign(clone(DEFAULTS), m);
+  n.rooms = (n.rooms&&n.rooms.length?n.rooms:[defaultRoom(1)]).map((r,i)=>{ const d=defaultRoom(i+1); return Object.assign(d, r, {id:r.id||d.id}); });
+  const ids=n.rooms.map(r=>r.id); n.equip=(n.equip||[]).map(e=>({...e, room: ids.includes(e.room)?e.room:ids[0]}));
+  return n;
+}
 let S = clone(DEFAULTS);
-try{ const s = localStorage.getItem('crLoadCalc.v21'); if(s){ const o=JSON.parse(s); S = Object.assign(clone(DEFAULTS), o); if(!o.roomType) S.roomType = (o.cleanClass==='GR'||o.condId==='GR')?'GR':'CR'; } }catch(e){}
+try{ const s = localStorage.getItem('crLoadCalc.v21'); if(s){ S = normState(JSON.parse(s)); } }catch(e){ S = clone(DEFAULTS); }
 const save = () => { try{ localStorage.setItem('crLoadCalc.v21', JSON.stringify(S)); }catch(e){} };
 
 const fmt = (x,d=0) => (x==null||isNaN(x)||!isFinite(x)) ? '-' : (Math.abs(x)<1e-9?0:Number(x)).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d});
@@ -688,6 +729,13 @@ function toast(m){ const t=$('toast'); t.textContent=trText(m); t.style.display=
 
 // ---------- input form spec ----------
 // [key, label, unit, type, opts]
+const AHU_FIELDS = [
+   ['coolSF','냉각 CAP. 안전율','×','number',{step:0.05,small:'<span id="sf_coolSF"></span>'}],['heatSF','히팅 CAP. 안전율','×','number',{step:0.05,small:'<span id="sf_heatSF"></span>'}],['humSF','가습 안전율','×','number',{step:0.05,small:'<span id="sf_humSF"></span>'}],
+   ['coolType','냉방열원 기준','','select',{opts:[['DX','공냉식'],['CW','수냉식']]}],
+   ['coolKcal','환산값','kcal/h','number',{small:'당사 표준: 공냉식 1HP 2,150 · 수냉식 1RT 3,024 kcal/h'}],
+   ['rlh','실내 잠열부하 R.L.H','kcal/h','number',{small:'당사 표준: 0 (현열 풍량 산정 시 잠열부하 불필요)'}],
+   ['useHeat','히팅 (H/C) 사용','','chk'],['useHum','가습 (HUM) 사용','','chk'],
+];
 const SECTIONS = [
  {no:'0', title:'프로젝트 정보', hint:'보고서 표지·머리말', open:false, fields:[
    ['client','Client','','text',{wide:1}],['project','Project','','text',{wide:1}],['zone','Zone (공조 장비 / 구역)','','text',{wide:1,ph:'예: AHU-2 ZONE (코팅실 외)'}],
@@ -695,47 +743,50 @@ const SECTIONS = [
    ['preparedBy','작성','','text'],['checkedBy','검토','','text'],['approvedBy','승인','','text'],
  ]},
  {no:'2-1', title:'외기 및 설계 조건', hint:'회사 표준 고정값 · 설계조건 추가 가능', open:true, cond:true},
- {no:'1-1', title:'실(ROOM) 사양', hint:'면적·층고·청정도·온습도 · AHU 설계 조건', open:true, fields:[
-   ['roomName','실명','','text'],['building','층/동','','text',{req:1}],
-   ['area','면적','m²','number',{req:1}],['ch','천장고 (C.H)','m','number'],
-   ['cleanClass','청정도 (@0.5㎛)','','select',{opts:Object.entries(CLASS_TBL).map(([k,v])=>[k,v.label])}],
-   ['roomType','실 구분 (ROOM TYPE)','','select',{opts:[['CR','CLEAN ROOM'],['GR','GENERAL ROOM']]}],
-   ['condId','적용 설계조건','','cond'],
-   ['roomTtol','온도 허용편차 ±','℃','select',{opts:[[3,'±3'],[2,'±2'],[1,'±1'],[0.5,'±0.5'],[0.1,'±0.1']]}],
-   ['roomRHtol','습도 허용편차 ±','%','number'],
-   ['illum','조도','LUX','select',{opts:[[300,'300'],[500,'500'],[700,'700']]}],
-   ['personDensity','재실 밀도','인/m²','number',{step:0.01}],['persons','재실 인원','인','number',{auto:1,step:1}],
-   ['eaGen','일반 배기 (EA GEN)','CMH','number',{req:1}],['eaProc','공정 배기 (EA PROCESS)','CMH','number'],
-   ['eaSaRatio','S.A 기준 배기 (S.A ×)','%','number',{chips:[0,20,30],chipsLabel:'배기량 미상 시 적용:',small:'<span id="eaSaInfo"></span>'}],
-   ['eaSaOut','S.A 기준 배기량 (적용값)','CMH','out'],['eaTotalOut','총 배기량 (EA TOTAL)','CMH','out',{total:1}],
-   ['_ahuHdr','AHU 설계 조건','안전율 · 냉방열원 · 히팅/가습 사용','hdr'],
-   ['coolSF','냉각 CAP. 안전율','×','number',{step:0.05,small:'<span id="sf_coolSF"></span>'}],['heatSF','히팅 CAP. 안전율','×','number',{step:0.05,small:'<span id="sf_heatSF"></span>'}],['humSF','가습 안전율','×','number',{step:0.05,small:'<span id="sf_humSF"></span>'}],
-   ['coolType','냉방열원 기준','','select',{opts:[['DX','공냉식'],['CW','수냉식']]}],
-   ['coolKcal','환산값','kcal/h','number',{small:'당사 표준: 공냉식 1HP 2,150 · 수냉식 1RT 3,024 kcal/h'}],
-   ['rlh','실내 잠열부하 R.L.H','kcal/h','number',{small:'당사 표준: 0 (현열 풍량 산정 시 잠열부하 불필요)'}],
-   ['useHeat','히팅 (H/C) 사용','','chk'],['useHum','가습 (HUM) 사용','','chk']
- ]},
- {no:'2-2', title:'부하 원단위', hint:'기준표에서 자동 입력, 수정 가능', open:true, fields:[
-   ['bldgUnit','건물 현열부하 (하절기)','kcal/h·m²','number'],['heatUnit','난방부하 (동절기)','kcal/h·m²','number'],
-   ['lightUnit','조명부하 원단위','kcal/h·m²','number',{auto:1}],['lightFactor','조명부하 할증계수','×','number',{step:0.1}],
-   ['personSH','인체 현열부하','kcal/h·인','number',{auto:1}],
-   ['fanLoad','FAN 발열 (BFU)','kcal/h','number',{auto:1}],['roomSF','실내부하 안전율','%','number'],
- ]},
- {no:'AIR', title:'풍량 기준', hint:'환기횟수·가압·외기', open:true, fields:[
-   ['ach','청정도 유지 환기횟수 (C.A)','회/h','number',{auto:1}],['paFactor','가압풍량 계수 (실용적 ×)','×','number',{auto:1,step:0.1}],
-   ['faPerPerson','1인당 외기량','CMH/인','number',{auto:1}],['tempACH','온도편차 환기횟수','회/h','number',{auto:1}],
-   ['caRatio','S.A 최소 (C.A 대비)','%','number',{small:'최종 S.A ≥ C.A × 비율 (기본 50% = C.A ÷ 2)'}],
- ]},
- {no:'BFU', title:'BFU · HFB', hint:'순환풍량(C.A − S.A) → BFU · 급기(S.A) → HFB', open:true, fields:[
-   ['bfuCMM','BFU 단위풍량','CMM','number'],['bfuSF','BFU 수량 여유율','×','number',{step:0.05}],
-   ['bfuW','BFU 대당 FAN 전력','W','number'],['bfuFactor','FAN 발열 계수','×','number',{step:0.05,small:'FAN 발열 = BFU 수량 × 전력(W) × 계수 × 0.86'}],
-   ['bfuQty','BFU 선정 수량','대','number',{auto:1,step:1}],
-   ['hfbCMM','HFB 단위풍량','CMM','number'],['hfbSF','HFB 수량 여유율','×','number',{step:0.05}],
-   ['hfbQty','HFB 선정 수량','대','number',{auto:1,step:1}],
- ]},
- {no:'2-1B', title:'공정 장비 발열', hint:'장비 용량 미상 시 임의 kW로 면적당 부하 확인', open:true, equip:true},
+ {no:'1-1', title:'실(ROOM) 사양 · 룸별 입력', hint:'룸 1개 = 1줄 · 룸 추가 시 같은 방법으로 계산 후 합산', open:true, rooms:true},
+ {no:'2-1B', title:'공정 장비 목록', hint:'공정 방식이 "장비 목록"인 룸에만 반영', open:false, equip:true},
+ {no:'AHU', title:'AHU 설계 조건', hint:'안전율 · 냉방열원 · 히팅/가습 사용', open:true, fields:AHU_FIELDS},
 ];
-
+// room table columns: [key, header, unit, type, width, opts]
+const RCOLS = [
+ {g:'실 사양', c:[['name','실명','','text',118],['building','층/동','','text',54],['area','면적','m²','num',72,{req:1}],['ch','천장고','m','num',48],['_vol','체적','m³','out',70],
+   ['cleanClass','청정도','@0.5㎛','sel',112,{opts:()=>Object.entries(CLASS_TBL).map(([k,v])=>[k,v.label])}],
+   ['roomType','실 구분','','sel',104,{opts:()=>[['CR','CLEAN ROOM'],['GR','GENERAL ROOM']]}],
+   ['condId','설계조건','온·습도','cond',176],
+   ['roomTtol','온도편차','±℃','sel',56,{opts:()=>[[3,'±3'],[2,'±2'],[1,'±1'],[0.5,'±0.5'],[0.1,'±0.1']],num:1}],
+   ['roomRHtol','습도편차','±%','num',48],['illum','조도','LUX','sel',60,{opts:()=>[[300,'300'],[500,'500'],[700,'700']],num:1}],
+   ['personDensity','재실밀도','인/m²','num',54],['persons','재실인원','인','auto',58]]},
+ {g:'배기 E.A', c:[['eaGen','일반 배기','CMH','num',72],['eaProc','공정 배기','CMH','num',68],['eaSaRatio','S.A 기준','% of S.A','num',54],['_ea','총 배기','CMH','out',76]]},
+ {g:'부하 원단위', c:[['bldgUnit','건물','kcal/h·m²','num',54],['heatUnit','난방','kcal/h·m²','num',54],['lightUnit','조명','kcal/h·m²','auto',54],
+   ['lightFactor','조명 할증','×','num',48],['personSH','인체','kcal/h·인','auto',54],['roomSF','안전율','%','num',46]]},
+ {g:'공정 부하', c:[['procMode','방식','','sel',92,{opts:()=>[['density','면적당 기준'],['power','장비 목록']]}],['targetDensity','목표 밀도','kcal/h·m²','auto',60],
+   ['densityKw','POWER','kW (빈칸=역산)','auto',72],['densityRate','부하율','%','num',46]]},
+ {g:'풍량 기준', c:[['ach','C.A 환기','회/h','auto',54],['paFactor','가압 계수','× 실용적','auto',54],['faPerPerson','1인 외기','CMH/인','auto',54],
+   ['tempACH','온도편차 환기','회/h','auto',58],['caRatio','S.A 최소','% of C.A','num',54]]},
+ {g:'BFU · HFB', c:[['bfuCMM','BFU','CMM','num',48],['bfuSF','BFU 여유','×','num',46],['bfuW','BFU 전력','W','num',50],['bfuFactor','발열 계수','×','num',46],
+   ['bfuQty','BFU 수량','대','auto',54],['fanLoad','FAN 발열','kcal/h','auto',64],['hfbCMM','HFB','CMM','num',48],['hfbSF','HFB 여유','×','num',46],['hfbQty','HFB 수량','대','auto',54]]},
+];
+function roomCell(r,i,[k,h,u,t,w,o={}]){
+  const v=r[k]??'', a=`data-rm="${i}" data-f="${k}" aria-label="${esc(h)}" style="width:${w}px"`;
+  if(t==='text') return `<td${k==='name'?' class="stk stk2"':''}><input ${a} value="${esc(v)}"></td>`;
+  if(t==='num') return `<td><input ${a} type="number" step="any" value="${v===''||v==null?'':v}"${o.req?' class="req" placeholder="입력"':''}></td>`;
+  if(t==='auto') return `<td><input ${a} type="number" step="any" class="ra" id="ra_${i}_${k}" value="${v===''||v==null?'':v}"></td>`;
+  if(t==='sel') return `<td><select ${a}>${o.opts().map(([x,y])=>`<option value="${x}"${String(x)===String(v)?' selected':''}>${y}</option>`).join('')}</select></td>`;
+  if(t==='cond') return `<td><select ${a}>${allRoomConds(S).map(c=>`<option value="${esc(c.id)}"${c.id===v?' selected':''}>${esc(c.name)} (${c.db}℃/${c.rh}%)</option>`).join('')}</select></td>`;
+  if(t==='out') return `<td class="n ro" id="ro_${i}_${k}" style="min-width:${w}px"></td>`;
+  return '<td></td>';
+}
+function roomsHTML(){
+  const cols=RCOLS.flatMap(g=>g.c);
+  const head1=`<tr><th class="stk" rowspan="2" style="min-width:62px">#</th>${RCOLS.map(g=>`<th colspan="${g.c.length}" class="grp">${g.g}</th>`).join('')}</tr>`;
+  const head2=`<tr>${cols.map(([k,h,u,t])=>`<th class="${t==='auto'?'au':''}${k==='name'?' stk stk2':''}">${h}${u?`<small>${u}</small>`:''}</th>`).join('')}</tr>`;
+  const rows=S.rooms.map((r,i)=>`<tr><td class="stk act"><b>${i+1}</b><button class="row-b" data-cprm="${i}" title="룸 복사" aria-label="룸 복사">⧉</button><button class="row-x" data-delrm="${i}" title="룸 삭제" aria-label="룸 삭제">×</button></td>${cols.map(c=>roomCell(r,i,c)).join('')}</tr>`).join('');
+  return `<div class="scroll rwrap"><table class="tbl-in rtab"><thead>${head1}${head2}</thead><tbody>${rows}</tbody></table></div>
+    <div class="rbar"><button class="btn" id="addRoom">+ 룸 추가</button>
+      <span class="u">회색 칸 = 당사 표준 자동값 (숫자를 입력하면 직접 입력값, 지우면 자동으로 복귀) · 룸마다 같은 방법으로 계산 후 공조기(ZONE) 합계로 합산</span></div>
+    <div class="lbl" style="margin:4px 14px 6px">룸별 계산 결과</div>
+    <div class="scroll" style="padding-top:0" id="roomRes"></div>`;
+}
 function fieldHTML([k,label,unit,type,o={}]){
   const v = S[k];
   if(type==='text'||type==='date'){
@@ -795,20 +846,10 @@ function condHTML(){
 }
 function cN(v,d){ return `<td class="n">${fmt(v,d)}</td>`; }
 function equipHTML(){
-  const dens = S.procMode==='density';
-  const seg = `<div class="seg" role="group" aria-label="공정부하 산정 방식">
-    <button type="button" data-pmode="density" aria-pressed="${dens}"><b>면적당 부하 기준</b><small>장비 용량을 모를 때 · 임의 kW로 부하밀도 확인</small></button>
-    <button type="button" data-pmode="power" aria-pressed="${!dens}"><b>장비 전력 입력</b><small>생산설비 전기용량을 알 때</small></button></div>`;
-  const info = `<div class="pinfo" id="procInfo"></div>`;
-  if(dens){
-    return `<div style="padding:12px 14px 0">${seg}</div>
-      <div class="grid"><div class="f"><label for="i_densityOut">실내 부하밀도 (결과)</label><input id="i_densityOut" type="text" readonly class="auto" style="text-align:right" tabindex="-1"><span class="u">kcal/h·m²</span><small id="h_densityOut"></small></div><div class="f"><label for="i_densityKw">POWER (임의 입력)</label><input id="i_densityKw" data-k="densityKw" data-req="1" type="number" step="any" value="${S.densityKw===''||S.densityKw==null?'':S.densityKw}" placeholder="kW 입력" style="font-weight:600"><span class="u">kW</span><small id="h_densityKw"></small></div>${fieldHTML(['densityRate','LOAD RATE (부하율)','%','number',{small:'기본 30% · A/C 부하 = kW × 860 × 부하율'}])}</div>
-      <div class="scroll" style="padding-top:0"><table class="tbl-in"><thead><tr><th>실명</th><th style="width:50px">Q'TY</th><th style="width:40px">Φ</th><th style="width:50px">V</th><th style="width:96px">POWER<br>kW</th><th style="width:110px">POWER LOAD<br>kcal/h</th><th style="width:70px">LOAD<br>RATE %</th><th style="width:110px">A/C LOAD<br>kcal/h</th></tr></thead>
-        <tbody><tr><td id="pdName" style="padding:4px 8px"></td><td class="n">1</td><td class="n">3</td><td class="n">380</td><td class="n" id="pdKw" style="font-weight:600"></td><td class="n" id="pdH"></td><td class="n" id="pdRate"></td><td class="n" id="pdN" style="font-weight:600"></td></tr></tbody></table></div>
-      <div style="padding:0 14px 12px">${info}</div>`;
-  }
   const P=S.usePCW, X=S.useExhaust;
+  const ropts = sel => S.rooms.map(r=>`<option value="${esc(r.id)}"${r.id===sel?' selected':''}>${esc(r.name)}</option>`).join('');
   const rows = S.equip.map((e,i)=>`<tr>
+    <td><select data-eq="${i}" data-f="room" aria-label="룸">${ropts(e.room)}</select></td>
     <td><input data-eq="${i}" data-f="name" value="${esc(e.name)}" aria-label="장비명"></td>
     <td><input data-eq="${i}" data-f="qty" type="number" value="${e.qty}" aria-label="수량"></td>
     <td><input data-eq="${i}" data-f="kw" type="number" step="any" value="${e.kw}" aria-label="전력 kW"></td>
@@ -820,54 +861,45 @@ function equipHTML(){
     <td><input data-eq="${i}" data-f="rate" type="number" step="any" value="${e.rate}" aria-label="부하율 %"></td>
     <td class="n" id="eqN${i}"></td>
     <td><button class="row-x" data-delrow="${i}" title="행 삭제" aria-label="행 삭제">×</button></td></tr>`).join('');
-  return `<div style="padding:12px 14px 0">${seg}
+  return `<div style="padding:12px 14px 0"><p class="u" style="margin:0 0 6px;font-size:12px">생산설비 전기용량을 알 때 사용합니다. 룸 표의 공정 "방식"을 <b>장비 목록</b>으로 바꾼 룸에만 합산됩니다 (면적당 기준인 룸은 무시).</p>
     <div class="chk"><label><input type="checkbox" data-k="usePCW" ${P?'checked':''}> PCW 제거열 차감</label>
     <label><input type="checkbox" data-k="useExhaust" ${X?'checked':''}> 공정배기 제거열 차감</label></div></div>
     <div class="scroll"><table class="tbl-in"><thead><tr>
-    <th>장비명</th><th style="width:56px">수량</th><th style="width:86px">전력<br>kW</th><th style="width:100px">발열<br>kcal/h</th>
+    <th style="width:130px">룸</th><th>장비명</th><th style="width:56px">수량</th><th style="width:86px">전력<br>kW</th><th style="width:100px">발열<br>kcal/h</th>
     ${P?'<th style="width:80px">PCW<br>LPM</th><th style="width:56px">PCW<br>ΔT℃</th>':''}${X?'<th style="width:76px">배기<br>CMH</th><th style="width:56px">배기<br>ΔT℃</th>':''}
-    <th style="width:60px">부하율<br>%</th><th style="width:100px">A/C 부하<br>kcal/h</th><th></th></tr></thead><tbody>${rows}</tbody></table></div>
-    <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:0 14px 12px"><button class="btn" id="addEq">+ 장비 추가</button>${info}</div>`;
+    <th style="width:60px">부하율<br>%</th><th style="width:100px">A/C 부하<br>kcal/h</th><th></th></tr></thead><tbody>${rows||`<tr><td colspan="9" class="empty">장비 없음 — "+ 장비 추가"</td></tr>`}</tbody></table></div>
+    <div style="padding:0 14px 12px"><button class="btn" id="addEq">+ 장비 추가</button></div>`;
 }
-function spHTML(){
-  const rows = S.spItems.map((s,i)=>`<tr>
-    <td><input data-sp="${i}" data-f="name" value="${esc(s.name)}" aria-label="항목"></td>
-    <td><input data-sp="${i}" data-f="unit" type="number" step="any" value="${s.unit}" ${s.link?'disabled class="auto"':''} aria-label="정압"></td>
-    <td><input data-sp="${i}" data-f="qty" type="number" step="any" value="${s.qty??''}" placeholder="-" ${s.link?'disabled class="auto"':''} aria-label="수량"></td>
-    <td class="n" id="spV${i}"></td>
-    <td><button class="row-x" data-delsp="${i}" aria-label="행 삭제">×</button></td></tr>`).join('');
-  return `<div class="scroll" style="padding-top:0"><div class="lbl" style="margin:4px 0 6px">정압 계산 (mmAq)</div>
-    <table class="tbl-in"><thead><tr><th>항목</th><th style="width:90px">정압 (단위)</th><th style="width:80px">수량/길이</th><th style="width:90px">소계 mmAq</th><th></th></tr></thead>
-    <tbody>${rows}</tbody><tfoot><tr><td style="text-align:right;padding:4px 6px;font-weight:600">합계 × 안전율</td><td></td><td></td><td class="n" id="spTot" style="font-weight:700"></td><td></td></tr></tfoot></table></div>
-    <button class="btn addrow" id="addSp">+ 정압 항목 추가</button>`;
-}
+function spHTML(){ return ''; }
 function buildInputs(){
   $('inputs').innerHTML = SECTIONS.map(s=>`<details class="card"${s.open?' open':''}><summary><span class="no">${s.no}</span>${s.title}<span class="hint">${s.hint}</span></summary>
-    ${s.cond?condHTML():''}${s.fields?`<div class="grid">${s.fields.map(fieldHTML).join('')}</div>`:''}${s.equip?equipHTML():''}</details>`).join('');
+    ${s.cond?condHTML():''}${s.rooms?roomsHTML():''}${s.fields?`<div class="grid">${s.fields.map(fieldHTML).join('')}</div>`:''}${s.equip?equipHTML():''}</details>`).join('');
 }
 
 // ---------- events ----------
 function onInput(e){
   const t = e.target;
-  if(t.dataset.k){
+  if(t.dataset.rm!=null){
+    const r=S.rooms[+t.dataset.rm], f=t.dataset.f; if(!r) return;
+    let v = t.type==='number' ? (t.value===''?'':parseFloat(t.value)) : t.value;
+    if(t.tagName==='SELECT' && ['roomTtol','illum'].includes(f)) v=parseFloat(v);
+    r[f]=v;
+    if(e.type==='change'){
+      if(f==='cleanClass' && v==='GR' && r.roomType!=='GR'){ r.roomType='GR'; const s=document.querySelector(`[data-rm="${t.dataset.rm}"][data-f="roomType"]`); if(s) s.value='GR'; }
+      if(f==='name'){ rebuild(); return; }
+      if(f==='procMode' && v==='power' && !S.equip.some(q=>q.room===r.id)) toast(`${r.name}: 공정 장비 목록(2-1B)에 이 룸의 장비를 추가하세요.`);
+    }
+  } else if(t.dataset.k){
     if(t.readOnly) return;
     const k=t.dataset.k;
     if(t.type==='checkbox'){ S[k]=t.checked; if(e.type==='change') rebuild(); return; }
     let v = t.type==='number' ? (t.value===''? ((t.dataset.ah||t.dataset.req)?'':0) : parseFloat(t.value)) : t.value;
-    if(t.tagName==='SELECT' && ['roomTtol','illum'].includes(k)) v = parseFloat(v);
-    if(k==='condId') v = t.value;
     S[k]=v;
-    if(e.type==='change'){
-      if(k==='coolType'){ S.coolKcal = v==='DX'?2150:3024; $('i_coolKcal').value=S.coolKcal; toast(`${v==='DX'?'공냉식 DX 1HP = 2,150':'수냉식 1RT = 3,024'} kcal/h 적용 (환산값은 직접 수정 가능)`); }
-      if(k==='roomType'){ toast(`${v==='GR'?'GENERAL ROOM':'CLEAN ROOM'} 기준 적용: 가압계수 ×${v==='GR'?CLASS_TBL.GR.pa:clsOf().pa}, 1인당 외기 ${v==='GR'?25:40} CMH, 목표 부하밀도 ${v==='GR'?100:160} (수정한 항목은 유지)`); }
-      if(k==='cleanClass' && v==='GR' && S.roomType!=='GR'){ S.roomType='GR'; const rt=$('i_roomType'); if(rt) rt.value='GR'; }
-      if(k==='cleanClass'){ const c=CLASS_TBL[v]; toast(`${c.label} 기준값 적용: 환기횟수 ${c.ach}회, 가압계수 ×${c.pa} (수정한 항목은 유지)`); }
-      if(k==='condId'){ const c=calculate(S).air.applied; toast(`${c.name} 적용: ${c.room.db}℃ / ${c.room.rh}%, 코일출구 ${fmt(c.dew.db,1)}℃`); }
-    }
+    if(e.type==='change' && k==='coolType'){ S.coolKcal = v==='DX'?2150:3024; $('i_coolKcal').value=S.coolKcal; toast(`${v==='DX'?'공냉식 DX 1HP = 2,150':'수냉식 1RT = 3,024'} kcal/h 적용 (환산값은 직접 수정 가능)`); }
   } else if(t.dataset.cc!=null){
     const r=S.customConds[+t.dataset.cc], f=t.dataset.f;
     if(f==='name') r.name=t.value; else if(['ah','dewDB'].includes(f)) r[f]= t.value===''?'':parseFloat(t.value); else r[f]=parseFloat(t.value)||0;
-    if(e.type==='change'){ const sel=$('i_condId'); if(sel){ sel.innerHTML=condOptions(); } }
+    if(e.type==='change'){ rebuild(); return; }
   } else if(t.dataset.eq!=null){
     const r=S.equip[+t.dataset.eq], f=t.dataset.f; r[f] = t.type==='number' ? (parseFloat(t.value)||0) : t.value;
   } else if(t.dataset.sp!=null){
@@ -883,67 +915,62 @@ document.addEventListener('click', e=>{
   { const tg=t.closest&&t.closest('[data-toggle]'); if(tg){ const k=tg.dataset.toggle; S[k]=S[k]===false; rebuild(); toast(`${k==='useHeat'?'히팅(H/C)':'가습(HUM)'} ${S[k]?'사용':'미사용'}으로 변경했습니다.`); return; } }
   if(t.dataset.chtab){ S.chTab=t.dataset.chtab; document.querySelectorAll('[data-chtab]').forEach(b=>b.setAttribute('aria-selected', b.dataset.chtab===S.chTab)); document.querySelectorAll('.chpane').forEach(p=>p.hidden = p.dataset.pane!==S.chTab); save(); return; }
   if(t.dataset.setk){ const k=t.dataset.setk; S[k]=parseFloat(t.dataset.v); $('i_'+k).value=S[k]; update(); return; }
-  if(t.dataset.autobtn){
-    const k=t.dataset.autobtn; S.manual=S.manual||{};
-    if(S.manual[k]){ delete S.manual[k]; update(); toast('기준값 자동 계산으로 되돌렸습니다.'); }
-    else { S.manual[k]=true; update(); const inp=$('i_'+k); inp.focus(); inp.select(); }
-    return;
-  }
-  if(t.id==='addCond'){ const n=(S.customConds||[]).length+1; let id='C'+Date.now().toString(36); S.customConds=(S.customConds||[]).concat([{id,name:'ROOM CONDITION '+(DESIGN_CONDITIONS.rooms.length+n),db:22,rh:50,ah:'',dewDB:'',dewRH:95}]); rebuild(); toast('설계조건을 추가했습니다. 1-1 실 사양의 "적용 설계조건"에서 선택할 수 있습니다.'); }
-  if(t.dataset.delcc!=null){ const c=S.customConds[+t.dataset.delcc]; S.customConds.splice(+t.dataset.delcc,1); if(S.condId===c.id) S.condId='CR2'; rebuild(); }
-  if(t.closest && t.closest('[data-pmode]')){ S.procMode=t.closest('[data-pmode]').dataset.pmode; rebuild(); return; }
-  if(t.id==='addEq'){ S.equip.push({name:'EQUIPMENT '+(S.equip.length+1),qty:1,phase:3,volt:380,kw:0,pcwLpm:0,pcwDT:5,exCmh:0,exDT:0,rate:30}); rebuild(); }
-  if(t.dataset.delrow!=null){ if(S.equip.length>1){ S.equip.splice(+t.dataset.delrow,1); rebuild(); } else toast('장비 행은 최소 1개 필요합니다. 발열이 없으면 kW를 0으로 두세요.'); }
+  if(t.id==='addRoom'){ const last=S.rooms[S.rooms.length-1], n=S.rooms.length+1, r=Object.assign(clone(last||defaultRoom(n)), {id:defaultRoom(n).id, name:'ROOM '+n, area:'', persons:'', eaGen:'', eaProc:0, densityKw:'', bfuQty:'', fanLoad:'', hfbQty:''});
+    S.rooms.push(r); rebuild(); toast(`ROOM ${n}을(를) 추가했습니다. 면적 등을 입력하세요 (설정은 위 룸에서 복사).`); return; }
+  if(t.dataset.cprm!=null){ const i=+t.dataset.cprm, r=Object.assign(clone(S.rooms[i]), {id:defaultRoom(S.rooms.length+1).id, name:S.rooms[i].name+' (복사)'}); S.rooms.splice(i+1,0,r); rebuild(); return; }
+  if(t.dataset.delrm!=null){ if(S.rooms.length<=1){ toast('룸은 최소 1개 필요합니다.'); return; } const i=+t.dataset.delrm, gone=S.rooms[i];
+    if(!confirmDel(gone)) return; S.rooms.splice(i,1); S.equip.forEach(q=>{ if(q.room===gone.id) q.room=S.rooms[0].id; }); rebuild(); toast(`${gone.name}을(를) 삭제했습니다.`); return; }
+  if(t.id==='addCond'){ const n=(S.customConds||[]).length+1; let id='C'+Date.now().toString(36); S.customConds=(S.customConds||[]).concat([{id,name:'ROOM CONDITION '+(DESIGN_CONDITIONS.rooms.length+n),db:22,rh:50,ah:'',dewDB:'',dewRH:95}]); rebuild(); toast('설계조건을 추가했습니다. 룸 표의 "설계조건"에서 선택할 수 있습니다.'); }
+  if(t.dataset.delcc!=null){ const c=S.customConds[+t.dataset.delcc]; S.customConds.splice(+t.dataset.delcc,1); S.rooms.forEach(r=>{ if(r.condId===c.id) r.condId='CR2'; }); rebuild(); }
+  if(t.id==='addEq'){ const pr=S.rooms.find(r=>r.procMode==='power')||S.rooms[0]; S.equip.push({room:pr.id,name:'EQUIPMENT '+(S.equip.length+1),qty:1,phase:3,volt:380,kw:0,pcwLpm:0,pcwDT:5,exCmh:0,exDT:0,rate:30}); rebuild(); }
+  if(t.dataset.delrow!=null){ S.equip.splice(+t.dataset.delrow,1); rebuild(); }
   if(t.id==='addSp'){ S.spItems.push({name:'추가 항목',unit:0}); rebuild(); }
   if(t.dataset.delsp!=null){ S.spItems.splice(+t.dataset.delsp,1); rebuild(); }
 });
+const confirmDel = r => { try{ return window.confirm(trText(`${r.name} 룸을 삭제할까요?`)); }catch(e){ return true; } };
 function rebuild(){ const open=[...document.querySelectorAll('#inputs details')].map(d=>d.open); buildInputs(); document.querySelectorAll('#inputs details').forEach((d,i)=>d.open=open[i]); update(); }
 
 // ---------- results panel ----------
 let R;
-const MISSING = () => [['area','면적'],['building','층/동'],['eaGen','일반 배기']].filter(([k])=>S[k]===''||S[k]==null).map(([,l])=>l);
+const MISSING = () => S.rooms.map((r,i)=>(+r.area>0)?null:`${r.name||'ROOM '+(i+1)} 면적`).filter(Boolean);
+const roomLabel = () => R.rooms.length===1 ? (R.rooms[0].name) : `${R.rooms.length} ROOMS`;
+function roomResultsHTML(){
+  const RR=R.rooms, nums='①②③④', keys=['load','oa','ca','temp'];
+  const row=r=>{ const a=r.air2, c=[a.saLoad,r.oa.oa,a.saCa,a.saTemp], gi=keys.indexOf(a.govKey), out=densOut(r.rm,r.L.density);
+    return `<tr><td class="c">${r.ix+1}</td><td>${esc(r.name)}</td><td class="n">${fmt(r.area)}</td><td class="n">${fmt(r.vol)}</td><td class="n">${fmt(r.L.total)}</td><td class="n" style="color:${out?'var(--warn)':'var(--ok)'}">${fmt(r.L.density,1)}</td>
+      <td class="n">${fmt(r.L.heat)}</td><td class="n">${fmt(r.oa.ea)}</td><td class="n">${fmt(r.oa.oa)}</td><td class="n">${fmt(a.dT,2)}</td>
+      ${c.map((v,j)=>`<td class="n${j===gi?' sel':''}">${fmt(v)}</td>`).join('')}<td class="n fin">${fmt(a.saFinal)}</td><td class="c"><span class="pill">${nums[gi]}</span></td>
+      <td class="n">${fmt(a.ca)}</td><td class="n">${fmt(r.bfu.qty)}</td><td class="n">${fmt(r.bfu.hfbSel)}</td><td class="n">${fmt(a.achActual,1)}</td></tr>`; };
+  const L=R.load, a2=R.air2;
+  return `<table class="tbl-in rres"><thead><tr><th>#</th><th>실명</th><th>면적<small>m²</small></th><th>체적<small>m³</small></th><th>냉방부하<small>kcal/h</small></th><th>밀도<small>kcal/h·m²</small></th><th>난방<small>kcal/h</small></th>
+    <th>총 배기<small>CMH</small></th><th>O.A<small>CMH</small></th><th>ΔT<small>℃</small></th><th>① 부하 S.A</th><th>② O.A</th><th>③ C.A×%</th><th>④ 온도편차</th><th>최종 S.A<small>CMH</small></th><th>근거</th><th>C.A<small>CMH</small></th><th>BFU</th><th>HFB</th><th>환기<small>회/h</small></th></tr></thead>
+    <tbody>${RR.map(row).join('')}</tbody>
+    <tfoot><tr><td></td><td>TOTAL (${RR.length})</td><td class="n">${fmt(R.room.area)}</td><td class="n">${fmt(R.room.vol)}</td><td class="n">${fmt(L.total)}</td><td class="n">${fmt(L.density,1)}</td><td class="n">${fmt(L.heat)}</td><td class="n">${fmt(R.oa.ea)}</td><td class="n">${fmt(R.oa.oa)}</td><td></td>
+    <td class="n">${fmt(a2.saLoad)}</td><td class="n">${fmt(R.oa.oa)}</td><td class="n">${fmt(a2.saCa)}</td><td class="n">${fmt(a2.saTemp)}</td><td class="n fin">${fmt(a2.saFinal)}</td><td class="c">Σ</td><td class="n">${fmt(a2.ca)}</td><td class="n">${fmt(R.bfu.qty)}</td><td class="n">${fmt(R.bfu.hfbSel)}</td><td class="n">${fmt(a2.achActual,1)}</td></tr></tfoot></table>
+    <p class="u" style="margin:6px 0 0;font-size:11.5px">최종 S.A = 룸별 MAX(① 부하/ΔT, ② 외기량, ③ C.A × 비율, ④ 온도편차 환기) — 파란 칸이 선정 기준 · 공조기 S.A = 룸별 최종 S.A 합계 · 코일 출구(노점) ${esc(R.air.applied.name)} ${fmt(R.air.DP.db,2)}℃ 기준</p>`;
+}
 function update(){
-  applyAuto();
   R = calculate(S);
-  if(!S.manual.fanLoad) S.fanLoad = Math.round(R.load.fan*10)/10;
-  if(!S.manual.bfuQty) S.bfuQty = R.bfu.qty;
-  if(!S.manual.hfbQty) S.hfbQty = R.bfu.hfb;
-  { const e=$('i_densityKw'), h=$('h_densityKw'); if(e && R.procDensity){ const d=R.procDensity, std=isGR()?'일반룸 약 100':'클린룸 150~200';
-      const out = isGR() ? (R.load.density>130) : (R.load.density<150||R.load.density>200);
-      e.placeholder = `권장 ${fmt(d.kwAuto,1)}`;
-      h.className = ''; h.textContent = d.manual ? `권장 ${fmt(d.kwAuto,1)} kW (${fmt(S.targetDensity)} kcal/h·m² 기준) · 지우면 권장값 적용` : `비워두면 권장 ${fmt(d.kwAuto,1)} kW 적용 (${fmt(S.targetDensity)} kcal/h·m² 기준)`;
-      const o=$('i_densityOut'), oh=$('h_densityOut'); if(o){ o.value = fmt(R.load.density,1); o.style.color = out?'var(--warn)':'var(--ok)'; o.style.fontWeight='600';
-        oh.innerHTML = `<span class="pill${out?' w':''}">${out?'기준 벗어남':'기준 이내'}</span> 사내 기준 ${std} kcal/h·m²`; } } }
   save();
-  R.ready = S.area>0;
-  for(const k in AUTO){ const inp=$('i_'+k), h=$('h_'+k), b=document.querySelector(`[data-autobtn="${k}"]`); if(!inp) continue;
-    const man=!!S.manual[k], av=AUTO[k].val();
-    inp.readOnly=!man; inp.classList.toggle('auto',!man); if(!man || document.activeElement!==inp) inp.value=S[k];
-    if(b){ b.textContent=man?'자동':'수정'; b.title=man?'기준값 자동 계산으로 되돌리기':'값을 직접 수정'; }
-    if(h){ h.className=man?'man':''; h.textContent = man ? `직접 입력 (기준값 ${fmt(av, Number.isInteger(av)?0:1)})` : `자동: ${AUTO[k].basis()}`; } }
-  document.querySelectorAll('.chip[data-setk]').forEach(b=>b.classList.toggle('on', +b.dataset.v===+S[b.dataset.setk]));
+  R.ready = MISSING().length===0;
+  // room table: auto placeholders, derived cells
+  R.rooms.forEach((rr,i)=>{ const r=S.rooms[i];
+    AUTO_KEYS.forEach(k=>{ const el=$(`ra_${i}_${k}`); if(!el) return; const av=roomAuto(r,k,S); el.placeholder=fmt(av, Number.isInteger(av)?0:2); el.title=`자동: ${AUTO_BASIS[k](r)}`; });
+    const calcAuto={bfuQty:[rr.bfu.auto,0], fanLoad:[rr.bfu.fanCalc,1], hfbQty:[rr.bfu.hfb,0], densityKw: rr.procDensity?[rr.procDensity.kwAuto,1]:[rr.procTot.kw,1]};
+    for(const k in calcAuto){ const el=$(`ra_${i}_${k}`); if(!el) continue; el.placeholder=fmt(...calcAuto[k]); el.title=k==='densityKw'&&r.procMode==='power'?'장비 목록 합계 (2-1B)':`자동: ${AUTO_BASIS[k](r)}`; }
+    const pw=r.procMode==='power'; ['targetDensity','densityKw','densityRate'].forEach(k=>{ const el=document.querySelector(`[data-rm="${i}"][data-f="${k}"]`); if(el){ el.disabled=pw; el.classList.toggle('dis',pw); } });
+    { const vv=$(`ro_${i}__vol`); if(vv){ vv.textContent=fmt(rr.vol); vv.title=`면적 ${fmt(rr.area)} × 천장고 ${rr.ch}`; } }
+    const o=$(`ro_${i}__ea`); if(o){ o.textContent=fmt(rr.oa.ea); o.title=`일반 ${fmt(rr.oa.eaGen)} + 공정 ${fmt(rr.oa.eaProc)} + S.A × ${fmt(rr.oa.eaRatio)}% (${fmt(rr.oa.eaSa)})`; }
+  });
+  if($('roomRes')) $('roomRes').innerHTML = R.ready ? roomResultsHTML() : `<div class="empty">룸별 <b>면적</b>을 입력하면 계산 결과가 표시됩니다: ${esc(MISSING().join(', '))}</div>`;
   [['coolSF',1.1],['heatSF',1.1],['humSF',1.3]].forEach(([k,std])=>{ const el=$('sf_'+k); if(!el) return; const v=+S[k]||0, pct=Math.round((v-1)*1000)/10; el.innerHTML=`현재 ×${v} = <b>+${pct}%</b> · 당사 표준 ×${std} (+${Math.round((std-1)*100)}%)${Math.abs(v-std)>1e-9?' <span style="color:var(--warn)">· 표준과 다름</span>':''}`; });
-  { const o=R.oa, a=$('i_eaSaOut'), b=$('i_eaTotalOut'); if(a) a.value=fmt(o.eaSa); if(b) b.value=fmt(o.ea); }
-  { const el=$('eaSaInfo'), o=R.oa; if(el) el.innerHTML = o.eaRatio>0 ? `S.A ${fmt(R.air2.saFinal)} × ${fmt(o.eaRatio)}% = <b>${fmt(o.eaSa)} CMH</b> → 총 배기 E.A = 일반 ${fmt(o.eaGen)} + 공정 ${fmt(o.eaProc)} + S.A 기준 ${fmt(o.eaSa)} = <b>${fmt(o.ea)} CMH</b>` : `미적용 (0%) · 총 배기 E.A = 일반 ${fmt(o.eaGen)} + 공정 ${fmt(o.eaProc)} = <b>${fmt(o.ea)} CMH</b>`; }
-  const ac=R.air.applied;
-  if($('condInfo')) $('condInfo').textContent = `실내 ${ac.room.db}℃ / ${ac.room.rh}% · ${fmt(ac.room.ah,5)} kg/kg' · 코일출구(노점) ${fmt(ac.dew.db,1)}℃ · ΔT ${fmt(ac.room.db-ac.dew.db,1)}℃`;
-  R.air.rooms.forEach(c=>{ const el=$('rmk_'+c.id); if(el) el.innerHTML = c.id===S.condId?'<span class="pill w">적용</span>':''; });
+  const usedIds=R.air.used.map(c=>c.id);
+  R.air.rooms.forEach(c=>{ const el=$('rmk_'+c.id); if(el) el.innerHTML = usedIds.includes(c.id)?`<span class="pill w">적용${c.id===R.air.applied.id&&usedIds.length>1?' · 코일 기준':''}</span>`:''; });
   (S.customConds||[]).forEach((c,i)=>{ const rc=R.air.rooms.find(x=>x.id===c.id); if(!rc) return;
     const set=(id,v)=>{ const el=$(id); if(el) el.textContent=v; };
-    set('cch_'+i, fmt(rc.room.h,2)); set('ccdn_'+i, rc.dewName); set('ccda_'+i, fmt(rc.dew.ah,5)); set('ccdh_'+i, fmt(rc.dew.h,2));
-    const ah=$('i_cc_ah_'+i); });
-  { const el=$('procInfo'), L=R.load, pt=R.procTot; if(el){
-    if(pt.mode==='density'){ const d=R.procDensity;
-      const out = isGR() ? (L.density>130) : (L.density<150||L.density>200), std=isGR()?'일반룸 약 100':'클린룸 150~200';
-      el.innerHTML = d.manual
-        ? `POWER ${fmt(d.kwEq,1)} kW × 860 = ${fmt(d.powerLoad)} kcal/h × ${fmt(d.rate)}% = <b>A/C ${fmt(d.need)} kcal/h</b> → 실내 부하밀도 <b>${fmt(L.density,1)}</b> kcal/h·m² <span class="pill${out?' w':''}">사내 기준 ${std}</span> · 권장 ${fmt(d.kwAuto,1)} kW`
-        : `A/C 부하(역산) = 목표 ${fmt(d.target)} × ${fmt(R.room.area)} m²${S.roomSF?` ÷ ${1+S.roomSF/100}`:''} − 건물·인체·조명·FAN ${fmt(d.others)} = <b>${fmt(d.need)} kcal/h</b> → POWER LOAD ${fmt(d.need)} ÷ ${fmt(d.rate)}% = ${fmt(d.powerLoad)} kcal/h → 환산 전력 <b>${fmt(d.kwEq,1)} kW</b> · 실내 부하밀도 <b>${fmt(L.density,1)}</b> kcal/h·m²`;
-      const set=(id,v)=>{const e=$(id); if(e) e.textContent=v;}; set('pdName',S.roomName); set('pdKw',fmt(d.kwEq,1)); set('pdH',fmt(d.powerLoad)); set('pdRate',fmt(d.rate)); set('pdN',fmt(d.need));
-    } else { const std=isGR()?'일반룸 약 100':'클린룸 150~200'; const out = isGR() ? (L.density>130) : (L.density<150||L.density>200);
-      el.innerHTML = `공정부하 합계 <b>${fmt(pt.N)} kcal/h</b> (전력 ${fmt(pt.kw,1)} kW) → 실내 부하밀도 <b>${fmt(L.density,1)}</b> kcal/h·m² <span class="pill${out?' w':''}">사내 기준 ${std}</span>`; } } }
-  R.proc.forEach((p,i)=>{ const h=$('eqH'+i), n=$('eqN'+i); if(h) h.textContent=fmt(p.H); if(n) n.textContent=fmt(p.N); });
-  R.ahu.spItems.forEach((s,i)=>{ const el=$('spV'+i); if(el) el.textContent=fmt(s.v,1); });
-  if($('spTot')) $('spTot').textContent = `${fmt(R.ahu.spSum,1)} × ${S.spSF} = ${fmt(R.ahu.sp,1)}`;
+    set('cch_'+i, fmt(rc.room.h,2)); set('ccdn_'+i, rc.dewName); set('ccda_'+i, fmt(rc.dew.ah,5)); set('ccdh_'+i, fmt(rc.dew.h,2)); });
+  S.equip.forEach((e,i)=>{ const H=XL.roundup(e.qty*e.kw*860,0), K=S.usePCW?e.pcwLpm*e.pcwDT*60:0, M=S.useExhaust?e.exCmh*0.288*e.exDT:0, N=XL.roundup((H-K-M)*e.rate/100,-1);
+    const h=$('eqH'+i), n=$('eqN'+i); if(h) h.textContent=fmt(H); if(n){ n.textContent=fmt(N); const rm=S.rooms.find(r=>r.id===e.room); n.style.opacity = rm&&rm.procMode==='power'?1:.4; n.title = rm&&rm.procMode==='power'?'':'이 룸은 면적당 기준 — 합산 안 됨'; } });
   renderSide();
   trDOM($('calc'));
 }
@@ -995,40 +1022,49 @@ function renderSide(){
     ['sideAll','sidePer','sideCh_air','sideCh_water'].forEach(id=>$(id).innerHTML='<div class="empty">—</div>');
     $('sideWarn').innerHTML = `<p>필수 입력: ${miss.join(', ')}</p>`; $('psyBody').innerHTML='<div class="empty">필수 입력값을 넣으면 습공기 선도가 표시됩니다.</div>'; return;
   }
-  $('sideRoom').innerHTML = `<h2>실 부하 요약 <span class="pill">${esc(S.roomName)}</span></h2>
+  const RR=R.rooms, one=RR.length===1, r0=RR[0];
+  const saBox = (()=>{ const nums='①②③④', keys=['load','oa','ca','temp'];
+    if(one){ const r=r0, a=r.air2;
+      const c=[
+        [`부하 S.A (ΔT ${fmt(a.dT,2)}℃)`, `ΔT = 실내 ${r.RM.db}℃ − 코일출구(노점) ${fmt(R.air.DP.db,2)}℃ = <b>${fmt(a.dT,2)}℃</b><br>S.A = ${fmt(r.L.total)} kcal/h ÷ 0.29 ÷ ${fmt(a.dT,2)}℃ = ${fmt(r.L.total/0.29/a.dT)} → 10 단위 올림`, a.saLoad],
+        ['외기량 O.A', `MAX(EA+PA, F.A) · ${r.oa.governing}`, r.oa.oa],
+        [`C.A × ${fmt(r.U.caRatio)}%`, `C.A ${fmt(a.ca)} CMH × ${fmt(r.U.caRatio)}%`, a.saCa],
+        ['온도편차 풍량', `실용적 ${fmt(r.vol)} m³ × ${r.U.tempACH}회/h (±${r.rm.roomTtol}℃)`, a.saTemp]];
+      const gi=keys.indexOf(a.govKey);
+      return `<div class="sabox"><div class="sah"><span>급기량 S.A 선정 과정</span><small>4개 기준 중 최대값 선정</small></div>
+        ${c.map((x,i)=>`<div class="cand${i===gi?' on':''}"><span class="no">${i+1}</span><span>${x[0]}</span><span class="tag">${i===gi?'✔ 선정':''}</span><span class="val">${fmt(x[2])} CMH</span><span class="fm">${x[1]}</span></div>`).join('')}
+        <div class="res"><span class="l">최종 급기량 S.A<small>= MAX(${nums}) = ${nums[gi]} ${c[gi][0]}</small></span><span class="v">${fmt(a.saFinal)}<small>CMH</small></span></div></div>`; }
+    return `<div class="sabox"><div class="sah"><span>급기량 S.A 선정 과정 — 룸별</span><small>룸마다 4개 기준 중 최대값 → 합계</small></div>
+      ${RR.map(r=>{ const a=r.air2, gi=keys.indexOf(a.govKey), c=[a.saLoad,r.oa.oa,a.saCa,a.saTemp];
+        return `<div class="cand on" style="box-shadow:none;background:transparent;color:var(--ink)"><span class="no">${r.ix+1}</span><span>${esc(r.name)}</span><span class="tag">${nums[gi]} ${esc(a.gov)}</span><span class="val">${fmt(a.saFinal)} CMH</span>
+          <span class="fm">${c.map((v,j)=>`${j===gi?'<b>':''}${nums[j]} ${fmt(v)}${j===gi?'</b>':''}`).join(' · ')}${a.govKey==='load'?` · ΔT ${fmt(a.dT,2)}℃`:''}</span></div>`; }).join('')}
+      <div class="res"><span class="l">최종 급기량 S.A (합계)<small>= Σ 룸별 최종 S.A (${RR.length}개 룸)</small></span><span class="v">${fmt(a2.saFinal)}<small>CMH</small></span></div></div>`; })();
+  $('sideRoom').innerHTML = `<h2>실 부하 요약 <span class="pill">${esc(roomLabel())}</span></h2>
     <div class="kpis">
-      <div class="kpi"><div class="k">실내 냉방부하</div><div class="v">${fmt(L.total)}<small>kcal/h</small></div></div>
+      <div class="kpi"><div class="k">실내 냉방부하${one?'':' (합계)'}</div><div class="v">${fmt(L.total)}<small>kcal/h</small></div></div>
       <div class="kpi"><div class="k">부하 밀도</div><div class="v">${fmt(L.density,1)}<small>kcal/h·m²</small></div></div>
-      <div class="kpi sa"><div class="k">급기량 S.A (Final)</div><div class="v">${fmt(a2.saFinal)}<small>CMH</small></div><div class="ref">선정 근거: ${a2.gov}</div>${a2.saFinal===a2.saLoad?`<div class="ref">ΔT = ${R.air.RM.db} − ${fmt(R.air.DP.db,2)} = ${fmt(a2.dT,2)}℃</div>`:''}</div>
+      <div class="kpi sa"><div class="k">급기량 S.A (Final)</div><div class="v">${fmt(a2.saFinal)}<small>CMH</small></div><div class="ref">선정 근거: ${esc(a2.gov)}</div>${one&&r0.air2.govKey==='load'?`<div class="ref">ΔT = ${r0.RM.db} − ${fmt(R.air.DP.db,2)} = ${fmt(r0.air2.dT,2)}℃</div>`:''}</div>
       <div class="kpi"><div class="k">외기량 O.A</div><div class="v">${fmt(R.oa.oa)}<small>CMH</small></div></div>
     </div>
     <div class="list">
-      <div class="sec"><span>ROOM COOLING LOAD (kcal/h)</span></div>
+      <div class="sec"><span>ROOM COOLING LOAD (kcal/h)${one?'':` — ${RR.length}개 룸 합계`}</span></div>
       <div><span>건물 (BUILDING)</span><b>${fmt(L.bldg)} kcal/h</b></div>
       <div><span>인체 (PERSON)</span><b>${fmt(L.person)} kcal/h</b></div>
       <div><span>조명 (LIGHTING)</span><b>${fmt(L.light)} kcal/h</b></div>
-      <div><span>공정장비 (PROCESS EQUIP.) <span class="pill">${R.procTot.mode==='density'?`면적당 ${fmt(S.targetDensity)} 기준`:'장비 전력 입력'}</span></span><b>${fmt(L.proc)} kcal/h</b></div>
+      <div><span>공정장비 (PROCESS EQUIP.) <span class="pill">${R.procTot.mode==='density'?(one?`면적당 ${fmt(r0.U.target)} 기준`:'면적당 기준'):R.procTot.mode==='power'?'장비 전력 입력':'룸별 혼합'}</span></span><b>${fmt(L.proc)} kcal/h</b></div>
       <div><span>FAN (BFU)</span><b>${fmt(L.fan)} kcal/h</b></div>
       <div><span>소계</span><b>${fmt(L.sub)} kcal/h</b></div>
-      <div style="background:var(--tint);padding-left:6px;padding-right:6px"><span><b style="font-family:var(--f-body);font-weight:700">합계 TOTAL</b> (S.F : ${fmt(S.roomSF)}%)</span><b style="font-weight:700">${fmt(L.total)} kcal/h</b></div>
+      <div style="background:var(--tint);padding-left:6px;padding-right:6px"><span><b style="font-family:var(--f-body);font-weight:700">합계 TOTAL</b> (S.F : ${one?fmt(r0.U.sf)+'%':'룸별'})</span><b style="font-weight:700">${fmt(L.total)} kcal/h</b></div>
       <div><span>난방부하</span><b>${fmt(L.heat)} kcal/h</b></div>
-      <div><span>순환풍량 C.A (실용적 × ${S.ach}회)</span><b>${fmt(a2.ca)} CMH</b></div>
+      <div><span>순환풍량 C.A ${one?`(실용적 × ${r0.U.ach}회)`:'(룸별 합계)'}</span><b>${fmt(a2.ca)} CMH</b></div>
     </div>
-    ${(()=>{ const c=[
-        [`부하 S.A (ΔT ${fmt(a2.dT,2)}℃)`, `ΔT = 실내 ${R.air.RM.db}℃ − 코일출구(노점) ${fmt(R.air.DP.db,2)}℃ = <b>${fmt(a2.dT,2)}℃</b><br>S.A = ${fmt(L.total)} kcal/h ÷ 0.29 ÷ ${fmt(a2.dT,2)}℃ = ${fmt(L.total/0.29/a2.dT)} → 10 단위 올림`, a2.saLoad],
-        ['외기량 O.A', `MAX(EA+PA, F.A) · ${R.oa.governing}`, R.oa.oa],
-        [`C.A × ${fmt(S.caRatio)}%`, `C.A ${fmt(a2.ca)} CMH × ${fmt(S.caRatio)}%`, a2.saCa],
-        ['온도편차 풍량', `실용적 ${fmt(R.room.vol)} m³ × ${S.tempACH}회/h (±${S.roomTtol}℃)`, a2.saTemp]];
-      const gi=c.findIndex(x=>x[2]===a2.saFinal), nums='①②③④';
-      return `<div class="sabox"><div class="sah"><span>급기량 S.A 선정 과정</span><small>4개 기준 중 최대값 선정</small></div>
-        ${c.map((x,i)=>`<div class="cand${i===gi?' on':''}"><span class="no">${i+1}</span><span>${x[0]}</span><span class="tag">${i===gi?'✔ 선정':''}</span><span class="val">${fmt(x[2])} CMH</span><span class="fm">${x[1]}</span></div>`).join('')}
-        <div class="res"><span class="l">최종 급기량 S.A<small>= MAX(${nums}) = ${nums[gi]} ${c[gi][0]}</small></span><span class="v">${fmt(a2.saFinal)}<small>CMH</small></span></div></div>`; })()}
+    ${saBox}
     <div class="list">
-      <div><span>총 배기 E.A<small style="display:block;color:var(--muted);font-size:11px">일반 ${fmt(R.oa.eaGen)} + 공정 ${fmt(R.oa.eaProc)} + S.A × ${fmt(R.oa.eaRatio)}% ${fmt(R.oa.eaSa)}</small></span><b>${fmt(R.oa.ea)} CMH</b></div>
-      <div><span>O.A 결정 근거</span><span class="pill">${R.oa.governing}</span></div>
-      <div><span>BFU 선정 (${S.bfuCMM} CMM)</span><b>${fmt(R.bfu.qty)} 대<small>${R.bfu.manual?`직접 입력 · 자동 ${fmt(R.bfu.auto)}`:'자동'}</small></b></div>
-      <div><span>BFU FAN 발열</span><b>${fmt(R.load.fan,1)} kcal/h<small>${fmt(R.bfu.qty*S.bfuW/1000,1)} kW</small></b></div>
-      <div><span>HFB 수량 (${S.hfbCMM} CMM)</span><b>${fmt(R.bfu.hfbSel)} 대<small>${R.bfu.hfbManual?`직접 입력 · 자동 ${fmt(R.bfu.hfb)}`:'자동'}</small></b></div>
+      <div><span>총 배기 E.A<small style="display:block;color:var(--muted);font-size:11px">일반 ${fmt(R.oa.eaGen)} + 공정 ${fmt(R.oa.eaProc)} + S.A 기준 ${fmt(R.oa.eaSa)}${one?` (${fmt(r0.oa.eaRatio)}%)`:''}</small></span><b>${fmt(R.oa.ea)} CMH</b></div>
+      <div><span>O.A 결정 근거</span><span class="pill">${esc(R.oa.governing)}</span></div>
+      <div><span>BFU 선정${one?` (${r0.rm.bfuCMM} CMM)`:' (합계)'}</span><b>${fmt(R.bfu.qty)} 대<small>${R.bfu.manual?'직접 입력 포함':'자동'}</small></b></div>
+      <div><span>BFU FAN 발열</span><b>${fmt(R.load.fan,1)} kcal/h</b></div>
+      <div><span>HFB 수량${one?` (${r0.rm.hfbCMM} CMM)`:' (합계)'}</span><b>${fmt(R.bfu.hfbSel)} 대<small>${R.bfu.hfbManual?'직접 입력 포함':'자동'}</small></b></div>
       <div><span>S.A 환기횟수 환산</span><b>${fmt(a2.achActual,1)} 회/h</b></div>
     </div>`;
   $('sideAll').innerHTML = capList(B,false);
@@ -1114,8 +1150,8 @@ function airflowSVG(forReport){
   g+=`<text x="${ax1}" y="${ay1+34}" text-anchor="end" class="ah">${esc(S.ahuTag)}${n>1?` × ${n}${tl('대',' units',' máy')}`:''} · ${tl('실 전체 기준','whole room basis','theo toàn phòng')}</text>`;
   // room
   g+=`<rect x="${rx0}" y="${ry0}" width="${rx1-rx0}" height="${ry1-ry0}" rx="9" fill="#e8f1f9" stroke="${cS}" stroke-width="1.6"/>
-    <text x="${rc}" y="${ry0+28}" text-anchor="middle" class="rm">${esc(S.roomName)}</text>
-    <text x="${rc}" y="${ry0+46}" text-anchor="middle" class="ss">${by.R.t}℃ / ${fmt(R.air.RM.rh,0)}% RH</text>`;
+    <text x="${rc}" y="${ry0+28}" text-anchor="middle" class="rm">${esc(roomLabel())}</text>
+    <text x="${rc}" y="${ry0+46}" text-anchor="middle" class="ss">${Number.isInteger(by.R.t)?by.R.t:fmt(by.R.t,1)}℃ / ${fmt(R.air.RM.rh,0)}% RH</text>`;
   g+=node(70,ym+18,['S1','W1'])+lead(220)+node(220,ay0-20,['S2','W2'])+lead(380)+node(380,ay0-20,['S3'])+(A.heatOff?'':lead(435)+node(435,ay0-20,['W3']));
   g+=node(652,ym,['S4','W4'])+node(rc,ry1-24,['R']);
   // flow tags — whole room
@@ -1242,15 +1278,15 @@ function capTable(B, A, T){
 }
 function buildReport(){
   const L=R.load, A=R.ahu, T=R.tot, a=R.air, a2=R.air2, rm=R.room, oa=R.oa, n=S.ahuQty;
-  const cls = CLASS_TBL[S.cleanClass]||{label:S.cleanClass};
+  const rdb = Number.isInteger(a.RM.db) ? a.RM.db : fmt(a.RM.db,2);
   const pages = [];
   // cover
   const toc = [
     ['1. CLEAN ROOM SPECIFICATION',0,2],['1-1. ROOM CONDITION',1,2],
-    ['2. H.V.A.C LOAD CALCULATION',0,2],['2-1. OUT AIR CONDITION (GIVEN DATA)',1,2],['2-2. MAKE-UP AIR (O.A) CALCULATION',1,2],['2-3. PROCESS EQUIPMENT COOLING LOAD',1,3],
-    ['2-4. ROOM LOAD CALCULATION',1,3],['2-5. AIR VOLUME (C.A / S.A / BFU / HFB)',1,3],['2-6. AHU SUMMARY',1,3],
-    ['3. AHU CALCULATION & EQUIPMENT SCHEDULE',0,4],['3-1. PRE-COOLING COIL',1,4],['3-2. RE-COOLING COIL',1,4],['3-3. HEATING COIL',1,4],['3-4. HUMIDIFICATION',1,4],
-    ['3-5. AIR FLOW DIAGRAM (공조 풍량 배분)',1,5],['3-6. PSYCHROMETRIC CHART (습공기 선도)',1,6],['3-7. AHU CAPACITY — 전체 / 대당',1,7],['3-8. EQUIPMENT SELECTION',1,8],['3-9. H.V.A.C EQUIPMENT SCHEDULE',1,8],
+    ['2. H.V.A.C LOAD CALCULATION',0,2],['2-1. OUT AIR CONDITION (GIVEN DATA)',1,2],['2-2. MAKE-UP AIR (O.A) CALCULATION',1,3],['2-3. PROCESS EQUIPMENT COOLING LOAD',1,3],
+    ['2-4. ROOM LOAD CALCULATION',1,3],['2-5. AIR VOLUME (C.A / S.A / BFU / HFB)',1,4],['2-6. AHU SUMMARY',1,4],
+    ['3. AHU CALCULATION & EQUIPMENT SCHEDULE',0,5],['3-1. PRE-COOLING COIL',1,5],['3-2. RE-COOLING COIL',1,5],['3-3. HEATING COIL',1,5],['3-4. HUMIDIFICATION',1,5],
+    ['3-5. AIR FLOW DIAGRAM (공조 풍량 배분)',1,6],['3-6. PSYCHROMETRIC CHART (습공기 선도)',1,7],['3-7. AHU CAPACITY — 전체 / 대당',1,8],['3-8. EQUIPMENT SELECTION',1,9],['3-9. H.V.A.C EQUIPMENT SCHEDULE',1,9],
   ];
   pages.push(`<div class="page cover"><div class="pg-head"><span>${LOGO_HTML}${esc(S.project)}${S.zone?` · ${esc(S.zone)}`:''}</span><span>${esc(S.rev)}</span></div>
     <div class="ttl"><div class="b">HVAC HEAT LOAD CALCULATION</div><div class="c">&lt; HVAC DESIGN FOR BASIC &gt;</div></div>
@@ -1263,85 +1299,84 @@ function buildReport(){
     <div class="sign"><div><span>작성</span><i>${esc(S.preparedBy)}</i></div><div><span>검토</span><i>${esc(S.checkedBy)}</i></div><div><span>승인</span><i>${esc(S.approvedBy)}</i></div></div>
     <div class="pg-foot"><span></span><span>1 / #T</span></div></div>`);
 
-  // p2: 1-1 room spec + 2-1 given
+  // p2: 1-1 room spec + 2-1 given + 2-2 make-up air — one row per room + TOTAL
+  const RR=R.rooms, one=RR.length===1, nums='①②③④', gk=['load','oa','ca','temp'];
+  const clsL = r => (CLASS_TBL[r.rm.cleanClass]||{label:r.rm.cleanClass}).label;
   const p2 = `
   <h2>1. CLEAN ROOM SPECIFICATION</h2>
-  <h3>1-1. ROOM CONDITION</h3>
-  <table class="rt"><tr><th>BUILD</th><th>ROOM NAME</th><th>ROOM TYPE</th><th>AREA<br>(m²)</th><th>C.H<br>(m)</th><th>VOLUME<br>(m³)</th><th>CLEANLINESS<br>(@0.5㎛)</th><th>TEMP<br>(℃DB)</th><th>HUMID<br>(%RH)</th><th>ILLUM<br>(LUX)</th><th>PERSON<br>(人)</th></tr>
-   <tr>${td(S.building,0,'c')}${td(S.roomName,0,'c')}${td(S.roomType==='GR'?'GENERAL ROOM':'CLEAN ROOM',0,'c')}${td(rm.area)}${td(rm.ch,1)}${td(rm.vol)}${td(cls.label,0,'c')}${td(`${a.RM.db}±${S.roomTtol}`,0,'c')}${td(`${a.RM.rh}±${S.roomRHtol}`,0,'c')}${td(S.illum)}${td(rm.persons)}</tr></table>
-  <table class="rt"><tr><th>EXHAUST GEN<br>(CMH)</th><th>EXHAUST PROCESS<br>(CMH)</th><th>EXHAUST S.A×${fmt(oa.eaRatio)}%<br>(CMH)</th><th>EXHAUST TOTAL<br>(CMH)</th><th>FRESH AIR<br>(CMH)</th><th>PROCESS POWER<br>(kW)</th><th>HEAT LOAD<br>(kcal/h·m²)</th><th>HVAC SYSTEM</th></tr>
-   <tr>${td(+S.eaGen||0)}${td(+S.eaProc||0)}${td(oa.eaSa)}${td(rm.eaTotal)}${td(oa.fa)}${td(R.procTot.mode==='density'?`${fmt(R.procTot.kw,1)} *`:fmt(R.procTot.kw,1))}${td(L.density,1)}${td(S.ahuTag,0,'c')}</tr></table>
-  <h2 style="margin-top:14px">2. H.V.A.C LOAD CALCULATION</h2>
+  <h3>1-1. ROOM CONDITION${one?'':` (${RR.length} ROOMS)`}</h3>
+  <table class="rt"><tr><th>NO.</th><th>BUILD</th><th>ROOM NAME</th><th>ROOM TYPE</th><th>AREA<br>(m²)</th><th>C.H<br>(m)</th><th>VOLUME<br>(m³)</th><th>CLEANLINESS<br>(@0.5㎛)</th><th>TEMP<br>(℃DB)</th><th>HUMID<br>(%RH)</th><th>ILLUM<br>(LUX)</th><th>PERSON<br>(人)</th></tr>
+   ${RR.map(r=>`<tr>${td(r.ix+1,0,'c')}${td(r.building||'',0,'c')}${td(r.name,0,'')}${td(r.rm.roomType==='GR'?'GENERAL':'CLEAN',0,'c')}${td(r.area)}${td(r.ch,1)}${td(r.vol)}${td(clsL(r),0,'c')}${td(`${r.RM.db}±${r.rm.roomTtol}`,0,'c')}${td(`${r.cond.room.rh}±${r.rm.roomRHtol}`,0,'c')}${td(+r.rm.illum)}${td(r.persons)}</tr>`).join('')}
+   ${one?'':`<tr class="tot"><td colspan="4">TOTAL</td>${td(rm.area)}<td></td>${td(rm.vol)}<td colspan="4"></td>${td(rm.persons)}</tr>`}</table>
+  <table class="rt"><tr><th>NO.</th><th>ROOM NAME</th><th>PROCESS POWER<br>(kW)</th><th>HEAT LOAD<br>(kcal/h·m²)</th><th>DESIGN CONDITION</th><th>HVAC SYSTEM</th></tr>
+   ${RR.map(r=>`<tr>${td(r.ix+1,0,'c')}${td(r.name,0,'')}${td(r.procTot.mode==='density'?`${fmt(r.procTot.kw,1)} *`:fmt(r.procTot.kw,1))}${td(r.L.density,1)}${td(r.cond.name,0,'c')}${td(S.ahuTag,0,'c')}</tr>`).join('')}</table>
+  <p class="note">* PROCESS POWER not provided — back-calculated from load per area (see 2-3).</p>
+  <h2 style="margin-top:12px">2. H.V.A.C LOAD CALCULATION</h2>
   <h3>2-1. OUT AIR CONDITION (GIVEN DATA)</h3>
   <table class="rt"><tr><th>SEASON</th><th>DRY BULB<br>(℃DB)</th><th>RELA. HUMIDITY<br>(%RH)</th><th>ABS. HUMIDITY<br>(kg/kg')</th><th>ENTHALPY<br>(kcal/kg)</th><th>REMARKS</th></tr>
    ${a.outdoor.map(o=>`<tr>${td(o.name,0,'c')}${td(o.db,1)}${td(o.rh,1)}${td(o.ah,5)}${td(o.h,2)}${td('',0,'c')}</tr>`).join('')}
-   ${a.rooms.map(c=>{ const on=c.id===a.applied.id; const k=on?'n hl':'n';
+   ${a.rooms.map(c=>{ const on=a.used.some(u=>u.id===c.id), coil=c.id===a.applied.id; const k=on?'n hl':'n';
      return `<tr>${td(c.name,0,'c')}<td class="${k}">${fmt(c.room.db,1)}</td><td class="${k}">${fmt(c.room.rh,1)}</td><td class="${k}">${fmt(c.room.ah,5)}</td><td class="${k}">${fmt(c.room.h,2)}</td>${td(on?'적용 (APPLIED)':'',0,'c')}</tr>
-     <tr>${td(c.dewName,0,'c')}<td class="${k}">${fmt(c.dew.db,1)}</td><td class="${k}">${fmt(c.dew.rh,1)}</td><td class="${k}">${fmt(c.dew.ah,5)}</td><td class="${k}">${fmt(c.dew.h,2)}</td>${td(on?'Coil leaving':'',0,'c')}</tr>`; }).join('')}</table>
-  <p class="note">Site atmospheric pressure: ${DESIGN_CONDITIONS.pressureLabel}. Room dew point ${fmt(a.RM.dew,1)}℃. Enthalpy h = (1.005·t + x·(2500 + 1.84·t)) / 4.186 [kcal/kg]</p>
-  <h3>2-2. MAKE-UP AIR (O.A) CALCULATION</h3>
-  <table class="rt"><tr><th>ROOM NAME</th><th>EXHAUST AIR<br>(CMH)</th><th>PRESSURE AIR<br>(CMH)</th><th>FRESH AIR<br>(CMH)</th><th>VOLUME MAX(EA+PA, FA)<br>(CMH)</th><th>REMARKS</th></tr>
-   <tr>${td(S.roomName,0,'c')}${td(oa.ea)}${td(oa.pa)}${td(oa.fa)}<td class="n hl">${fmt(oa.oa)}</td>${td(oa.governing,0,'c')}</tr></table>
-  <div class="eq">E.A = GEN ${fmt(oa.eaGen)} + PROCESS ${fmt(oa.eaProc)} + S.A ${fmt(a2.saFinal)} × ${fmt(oa.eaRatio)}% (${fmt(oa.eaSa)}) = ${fmt(oa.ea)} CMH (ROUNDUP 10)${oa.eaRatio>0?' — S.A-based exhaust applied (exhaust volume not provided)':''}
-P.A = Room volume ${fmt(rm.vol)} m³ × ${S.paFactor} = ${fmt(oa.pa)} CMH (ROUNDUP 100)
-F.A = ${fmt(rm.persons)} 人 × ${S.faPerPerson} CMH/人 = ${fmt(oa.fa)} CMH</div>
-  <p class="note">* STANDARD — N5(Class 100) PA = room volume × 2.0 / N6(1K) × 1.0~2.0 / N7(10K) × 1.0~2.0 / N8(100K) × 1.0 · F.A : 40 CMH/人 (CR), 25 CMH/人 (GR) · E.A : Owner utility list</p>`;
+     <tr>${td(c.dewName,0,'c')}<td class="${coil?'n hl':'n'}">${fmt(c.dew.db,1)}</td><td class="${coil?'n hl':'n'}">${fmt(c.dew.rh,1)}</td><td class="${coil?'n hl':'n'}">${fmt(c.dew.ah,5)}</td><td class="${coil?'n hl':'n'}">${fmt(c.dew.h,2)}</td>${td(coil?'Coil leaving':'',0,'c')}</tr>`; }).join('')}</table>
+  <p class="note">Site atmospheric pressure: ${DESIGN_CONDITIONS.pressureLabel}. Enthalpy h = (1.005·t + x·(2500 + 1.84·t)) / 4.186 [kcal/kg]${a.multiCond?` · 룸별 설계조건 상이 — 코일 출구는 가장 낮은 노점 (${esc(a.applied.name)}), 환기 혼합 상태는 S.A 가중 평균 ${fmt(a.RM.db,1)}℃ / ${fmt(a.RM.ah,5)} kg/kg'`:''}</p>
+`;
   pages.push(p2);
 
-  // p3: 2-1B process + 2-2 room load
+  // p3: 2-3 process + 2-4 room load
   const pt=R.procTot;
-  let procBlock;
-  if(pt.mode==='density'){ const d=R.procDensity;
-    procBlock = `<h3>2-3. PROCESS EQUIPMENT COOLING LOAD</h3>
-    <table class="rt"><tr><th>ROOM NAME</th><th>Q'TY</th><th>Φ</th><th>V</th><th>POWER<br>(kW)</th><th>POWER LOAD<br>(kcal/h)</th><th>LOAD RATE<br>(%)</th><th>A/C LOAD<br>(kcal/h)</th></tr>
-     <tr>${td(S.roomName,0,'')}${td(1)}${td(3)}${td(380)}${td(d.kwEq,1)}${td(d.powerLoad)}${td(d.rate)}<td class="n hl">${fmt(d.need)}</td></tr>
-     <tr class="tot"><td>TOTAL</td><td></td><td></td><td></td>${td(d.kwEq,1)}${td(d.powerLoad)}<td></td>${td(d.need)}</tr></table>
-    <table class="rt"><tr><th>ITEM</th><th>BASIS</th><th>(kcal/h)</th></tr>
-     <tr>${td('TARGET ROOM LOAD',0,'')}${td(`${fmt(d.target)} kcal/(h·m²) × ${fmt(rm.area)} m²`,0,'')}${td(d.targetLoad)}</tr>
-     <tr>${td('BUILDING + PERSON + LIGHTING + FAN',0,'')}${td('2-4 참조',0,'')}${td(d.others)}</tr>
-     <tr class="tot"><td>PROCESS A/C LOAD</td><td>${d.manual?`ASSUMED POWER ${fmt(d.kwEq,1)} kW × 860 × LOAD RATE ${fmt(d.rate)}%`:`TARGET${S.roomSF?` ÷ ${1+S.roomSF/100} (S.F)`:''} − (BUILDING + PERSON + LIGHTING + FAN)`}</td><td class="n">${fmt(d.need)}</td></tr>
-     <tr>${td(d.manual?'PROCESS POWER (assumed)':'PROCESS POWER (back-calc.)',0,'')}${td(d.manual?`${fmt(d.kwEq,1)} kW × 860 × ${fmt(d.rate)}% = ${fmt(d.need)} kcal/h → ${fmt(R.load.density,1)} kcal/(h·m²)`:`${fmt(d.need)} ÷ ${fmt(d.rate)}% ÷ 860`,0,'')}${td(`${fmt(d.kwEq,1)} kW`)}</tr></table>
-    <p class="note">* PROCESS POWER (kW) not provided — per our standard design practice, a load per square meter of 150~200 kcal/(h·m²) is applied for clean rooms (general room abt. 100 kcal/(h·m²)). Equivalent power is back-calculated at the load rate above.</p>`;
-  } else {
-    const P=pt.usePCW, X=pt.useEx;
-    const eqRows = R.proc.map(p=>`<tr>${td(p.name,0,'')}${td(p.qty)}${td(p.kw,1)}${td(p.H)}${P?td(p.pcwLpm)+td(p.K):''}${X?td(p.exCmh)+td(p.M):''}${td(p.rate,0)}<td class="n hl">${fmt(p.N)}</td></tr>`).join('');
-    procBlock = `<h3>2-3. PROCESS EQUIPMENT COOLING LOAD</h3>
-    <table class="rt"><tr><th>EQUIPMENT</th><th>Q'TY</th><th>POWER<br>(kW)</th><th>POWER LOAD<br>(kcal/h)</th>${P?'<th>PCW<br>(LPM)</th><th>PCW REMOVED<br>(kcal/h)</th>':''}${X?'<th>EXHAUST<br>(CMH)</th><th>EX. REMOVED<br>(kcal/h)</th>':''}<th>LOAD RATE<br>(%)</th><th>A/C LOAD<br>(kcal/h)</th></tr>
-    ${eqRows}<tr class="tot"><td>TOTAL</td><td></td>${td(pt.kw,1)}${td(pt.H)}${P?'<td></td>'+td(pt.K):''}${X?'<td></td>'+td(pt.M):''}<td></td>${td(pt.N)}</tr></table>
-    <p class="note">POWER LOAD = Q'TY × kW × 860${P?' · PCW REMOVED = LPM × ΔT × 60':''}${X?' · EX. REMOVED = CMH × 0.288 × ΔT':''} · A/C LOAD = (POWER${P?' − PCW':''}${X?' − EX.':''}) × LOAD RATE</p>`;
-  }
+  const dRooms=RR.filter(r=>r.procTot.mode==='density'), pRooms=RR.filter(r=>r.procTot.mode==='power');
+  let procBlock = `<h3>2-3. PROCESS EQUIPMENT COOLING LOAD</h3>`;
+  if(dRooms.length) procBlock += `<div class="lbl">* LOAD PER AREA BASIS (process power not provided)</div>
+    <table class="rt"><tr><th>ROOM NAME</th><th>TARGET<br>(kcal/h·m²)</th><th>BUILD.+PERSON+LIGHT+FAN<br>(kcal/h)</th><th>POWER<br>(kW)</th><th>POWER LOAD<br>(kcal/h)</th><th>LOAD RATE<br>(%)</th><th>A/C LOAD<br>(kcal/h)</th><th>BASIS</th></tr>
+    ${dRooms.map(r=>{ const d=r.procDensity; return `<tr>${td(r.name,0,'')}${td(d.target)}${td(d.others)}${td(d.kwEq,1)}${td(d.powerLoad)}${td(d.rate)}<td class="n hl">${fmt(d.need)}</td>${td(d.manual?'ASSUMED kW':'BACK-CALC.',0,'c')}</tr>`; }).join('')}
+    ${dRooms.length>1?`<tr class="tot"><td>TOTAL</td><td></td>${td(dRooms.reduce((s,r)=>s+r.procDensity.others,0))}${td(dRooms.reduce((s,r)=>s+r.procDensity.kwEq,0),1)}${td(dRooms.reduce((s,r)=>s+r.procDensity.powerLoad,0))}<td></td>${td(dRooms.reduce((s,r)=>s+r.procDensity.need,0))}<td></td></tr>`:''}</table>
+    <p class="note">BACK-CALC.: A/C LOAD = TARGET × AREA ÷ (1+S.F) − (BUILDING + PERSON + LIGHTING + FAN) → POWER = A/C ÷ LOAD RATE ÷ 860 · ASSUMED kW: A/C = kW × 860 × LOAD RATE · Company standard: clean room 150~200 kcal/(h·m²), general room abt. 100.</p>`;
+  if(pRooms.length){ const P=pt.usePCW, X=pt.useEx;
+    procBlock += `<div class="lbl">* EQUIPMENT POWER BASIS</div>
+    <table class="rt"><tr><th>ROOM</th><th>EQUIPMENT</th><th>Q'TY</th><th>POWER<br>(kW)</th><th>POWER LOAD<br>(kcal/h)</th>${P?'<th>PCW REMOVED<br>(kcal/h)</th>':''}${X?'<th>EX. REMOVED<br>(kcal/h)</th>':''}<th>LOAD RATE<br>(%)</th><th>A/C LOAD<br>(kcal/h)</th></tr>
+    ${pRooms.flatMap(r=>r.proc.map(p=>`<tr>${td(r.name,0,'')}${td(p.name,0,'')}${td(p.qty)}${td(p.kw,1)}${td(p.H)}${P?td(p.K):''}${X?td(p.M):''}${td(p.rate)}<td class="n hl">${fmt(p.N)}</td></tr>`)).join('')||`<tr><td colspan="9" class="c">NO EQUIPMENT</td></tr>`}</table>
+    <p class="note">POWER LOAD = Q'TY × kW × 860${P?' · PCW REMOVED = LPM × ΔT × 60':''}${X?' · EX. REMOVED = CMH × 0.288 × ΔT':''} · A/C LOAD = (POWER${P?' − PCW':''}${X?' − EX.':''}) × LOAD RATE</p>`; }
   const p3 = `
+  <h3>2-2. MAKE-UP AIR (O.A) CALCULATION</h3>
+  <table class="rt"><tr><th rowspan="2">ROOM NAME</th><th colspan="4">EXHAUST AIR (CMH)</th><th rowspan="2">PRESSURE AIR<br>(CMH)</th><th rowspan="2">FRESH AIR<br>(CMH)</th><th rowspan="2">O.A = MAX<br>(EA+PA, FA)</th><th rowspan="2">REMARKS</th></tr>
+   <tr><th>GEN</th><th>PROCESS</th><th>S.A × %</th><th>TOTAL</th></tr>
+   ${RR.map(r=>`<tr>${td(r.name,0,'')}${td(r.oa.eaGen)}${td(r.oa.eaProc)}${td(r.oa.eaRatio?`${fmt(r.oa.eaSa)} (${fmt(r.oa.eaRatio)}%)`:'0')}${td(r.oa.ea)}${td(r.oa.pa)}${td(r.oa.fa)}<td class="n hl">${fmt(r.oa.oa)}</td>${td(r.oa.governing,0,'c')}</tr>`).join('')}
+   ${one?'':`<tr class="tot"><td>TOTAL</td>${td(oa.eaGen)}${td(oa.eaProc)}${td(oa.eaSa)}${td(oa.ea)}${td(oa.pa)}${td(oa.fa)}<td class="n hl">${fmt(oa.oa)}</td><td></td></tr>`}</table>
+  <div class="eq">E.A = GEN + PROCESS + S.A × %   (S.A-based exhaust: applied when exhaust volume is not provided · ROUNDUP 10)
+P.A = Room volume × pressurization factor (ROUNDUP 100)      F.A = Persons × CMH/人
+${RR.map(r=>`${esc(r.name)}: P.A = ${fmt(r.vol)} × ${r.paFactor} = ${fmt(r.oa.pa)} · F.A = ${fmt(r.persons)} × ${r.faPP} = ${fmt(r.oa.fa)}`).join('\n')}</div>
+  <p class="note">* STANDARD — N5(Class 100) PA = room volume × 2.0 / N6(1K) × 1.0~2.0 / N7(10K) × 1.0~2.0 / N8(100K) × 1.0 / G.R × 0.5 · F.A : 40 CMH/人 (CR), 25 CMH/人 (GR) · E.A : Owner utility list</p>
   ${procBlock}
   <h3>2-4. ROOM LOAD CALCULATION</h3>
-  <table class="rt"><tr><th rowspan="2">ITEM</th><th rowspan="2">BASIS</th><th>LOAD</th></tr><tr><th>(kcal/h)</th></tr>
-   <tr>${td('BUILDING',0,'')}${td(`${S.bldgUnit} kcal/h·m² × ${fmt(rm.area)} m²`,0,'')}${td(L.bldg)}</tr>
-   <tr>${td('PERSON',0,'')}${td(`${S.personSH} kcal/h·人 × ${fmt(rm.persons)} 人`,0,'')}${td(L.person)}</tr>
-   <tr>${td('LIGHTING',0,'')}${td(`${S.lightUnit} kcal/h·m² (${S.illum} lux) × ${fmt(rm.area)} m² × ${S.lightFactor}`,0,'')}${td(L.light)}</tr>
-   <tr>${td('PROCESS EQUIP.',0,'')}${td(pt.mode==='density'?(R.procDensity.manual?`2-3 참조 (임의 POWER ${fmt(R.procDensity.kwEq,1)} kW)`:`2-3 참조 (면적당 ${fmt(S.targetDensity)} kcal/h·m² 기준 역산)`):'2-3 참조',0,'')}${td(L.proc)}</tr>
-   <tr>${td('FAN (BFU)',0,'')}${td(R.bfu.fanAuto?`BFU ${fmt(R.bfu.qty)} EA × ${fmt(S.bfuW)} W × ${S.bfuFactor} × 0.86`:'직접 입력',0,'')}${td(L.fan,1)}</tr>
-   <tr class="tot"><td>TOTAL (S.F : ${S.roomSF}%)</td><td>${fmt(L.density,1)} kcal/h·m² (${fmt(L.densityW,1)} W/m²)</td><td class="n hl">${fmt(L.total)}</td></tr>
-   <tr>${td('ROOM HEATING',0,'')}${td(`${S.heatUnit} kcal/h·m² × ${fmt(rm.area)} m²`,0,'')}${td(L.heat)}</tr></table>
-  <h3>2-5. AIR VOLUME (C.A / S.A / BFU / HFB)</h3>
-  ${(()=>{ const c=[
-      [`부하 S.A (ΔT ${fmt(a2.dT,2)}℃)`,'S.A BY LOAD',`ΔT = Room ${a.RM.db}℃ − Coil leaving (dew) ${fmt(a.DP.db,2)}℃ = <b>${fmt(a2.dT,2)}℃</b><br>${fmt(L.total)} kcal/h ÷ 0.29 ÷ ${fmt(a2.dT,2)}℃ = ${fmt(L.total/0.29/a2.dT)} → ROUNDUP 10`,a2.saLoad],
-      ['외기량 O.A','OUTSIDE AIR',`MAX(EA+PA, F.A) — ${oa.governing} (2-2 참조)`,oa.oa],
-      [`C.A × ${fmt(S.caRatio)}%`,'MIN. S.A',`C.A ${fmt(a2.ca)} CMH × ${fmt(S.caRatio)}%`,a2.saCa],
-      ['온도편차 풍량','TEMP. DEVIATION',`Volume ${fmt(rm.vol)} m³ × ${S.tempACH} 回/h (±${S.roomTtol}℃)`,a2.saTemp]];
-    const gi=c.findIndex(x=>x[3]===a2.saFinal), nums='①②③④';
-    return `<div class="lbl">* SUPPLY AIR (S.A) SELECTION — 급기량 선정 (①~④ 중 최대값)</div>
-      <table class="rt rsa"><tr><th style="width:6%">NO.</th><th style="width:22%">CRITERIA</th><th>BASIS</th><th style="width:16%">S.A (CMH)</th><th style="width:11%">RESULT</th></tr>
-      ${c.map((x,i)=>`<tr${i===gi?' class="on"':''}><td class="c">${nums[i]}</td><td>${x[0]} <span class="rsub">${x[1]}</span></td><td>${x[2]}</td><td class="n${i===gi?' hl':''}">${fmt(x[3])}</td><td class="c">${i===gi?'<b>SELECTED</b>':'-'}</td></tr>`).join('')}
-      <tr class="tot"><td colspan="2">FINAL S.A</td><td>MAX(${nums}) = ${nums[gi]} ${c[gi][0]} · ${fmt(a2.achActual,1)} 回/h</td><td class="n hl">${fmt(a2.saFinal)}</td><td class="c">CMH</td></tr></table>`; })()}
-  <table class="rt"><tr><th style="width:22%">ITEM</th><th>BASIS</th><th style="width:16%">QUANTITY</th></tr>
-   <tr>${td('C.A (Circulation)',0,'')}${td(`Volume ${fmt(rm.vol)} m³ × ${S.ach} 回/h (${cls.label}) — ③ 및 BFU 산정에 사용`,0,'')}${td(`${fmt(a2.ca)} CMH`)}</tr>
-   <tr>${td('BFU (C.A − S.A)',0,'')}${td(`(${fmt(a2.ca)} − ${fmt(a2.saFinal)}) ÷ ${S.bfuCMM} CMM ÷ 60 × ${S.bfuSF} = ${fmt(R.bfu.auto)} EA → SELECTED${R.bfu.manual?' (manual)':''}`,0,'')}${td(`${fmt(R.bfu.qty)} EA`)}</tr>
-   <tr>${td('HFB (S.A)',0,'')}${td(`${fmt(a2.saFinal)} ÷ ${S.hfbCMM} CMM ÷ 60 × ${S.hfbSF} = ${fmt(R.bfu.hfb)} EA → SELECTED${R.bfu.hfbManual?' (manual)':''}`,0,'')}${td(`${fmt(R.bfu.hfbSel)} EA`)}</tr>
-  </table>
-  <h3>2-6. AHU SUMMARY</h3>
-  <table class="rt"><tr><th>AHU</th><th>Q'TY</th><th>ROOM COOLING<br>(kcal/h)</th><th>ROOM HEATING<br>(kcal/h)</th><th>S.A<br>(CMH)</th><th>R.A<br>(CMH)</th><th>O.A<br>(CMH)</th><th>O.A RATIO</th></tr>
-   <tr>${td(S.ahuTag,0,'c')}${td(n)}${td(R.per.rsh)}${td(R.per.heat)}${td(R.per.sa)}${td(R.per.ra)}${td(R.per.oa)}${td(fmt(R.per.oaRatio*100,1)+' %')}</tr></table>
-  <p class="note">* 대당 값 = 실 전체 값 ÷ AHU 대수 · 사내 기준 공조기 1대 S.A 최대 ${fmt(AHU_MAX_SA)} CMH (권장 ${Math.ceil(a2.saFinal/AHU_MAX_SA)}대 이상, 현재 대당 ${fmt(A.sa)} CMH)</p>`;
+  <table class="rt"><tr><th rowspan="2">ROOM NAME</th><th colspan="5">ROOM COOLING LOAD (kcal/h)</th><th rowspan="2">S.F<br>(%)</th><th rowspan="2">TOTAL<br>(kcal/h)</th><th rowspan="2">DENSITY<br>(kcal/h·m²)</th><th rowspan="2">ROOM HEATING<br>(kcal/h)</th></tr>
+   <tr><th>BUILDING</th><th>PERSON</th><th>LIGHTING</th><th>PROCESS</th><th>FAN</th></tr>
+   ${RR.map(r=>`<tr>${td(r.name,0,'')}${td(r.L.bldg)}${td(r.L.person)}${td(r.L.light)}${td(r.L.proc)}${td(r.L.fan,1)}${td(r.U.sf)}<td class="n hl">${fmt(r.L.total)}</td>${td(r.L.density,1)}${td(r.L.heat)}</tr>`).join('')}
+   <tr class="tot"><td>TOTAL</td>${td(L.bldg)}${td(L.person)}${td(L.light)}${td(L.proc)}${td(L.fan,1)}<td></td><td class="n hl">${fmt(L.total)}</td>${td(L.density,1)}${td(L.heat)}</tr></table>
+  <div class="eq">BUILDING = unit × AREA · PERSON = kcal/h·人 × PERSONS · LIGHTING = unit (by lux) × AREA × factor · FAN = BFU × W × factor × 0.86
+${RR.map(r=>`${esc(r.name)}: ${r.U.bldg}×${fmt(r.area)} · ${r.U.personSH}×${fmt(r.persons)} · ${r.U.light}×${fmt(r.area)}×${r.U.lightF} · BFU ${fmt(r.bfu.qty)}×${fmt(+r.rm.bfuW)}×${r.rm.bfuFactor}×0.86 · HEAT ${r.U.heat}×${fmt(r.area)}`).join('\n')}</div>`;
   pages.push(p3);
+
+  // p3b: 2-5 air volume (room rows) + 2-6
+  const p3b = `
+  <h3>2-5. AIR VOLUME (C.A / S.A / BFU / HFB)</h3>
+  <div class="lbl">* SUPPLY AIR (S.A) SELECTION — 급기량 선정 (룸별 ①~④ 중 최대값)</div>
+  <table class="rt rsa"><tr><th rowspan="2">ROOM NAME</th><th rowspan="2">ΔT<br>(℃)</th><th colspan="4">S.A CRITERIA (CMH)</th><th rowspan="2">FINAL S.A<br>(CMH)</th><th rowspan="2">GOVERNED BY</th><th rowspan="2">ACH<br>(回/h)</th></tr>
+   <tr><th>① LOAD</th><th>② O.A</th><th>③ C.A × %</th><th>④ TEMP. DEV.</th></tr>
+   ${RR.map(r=>{ const x=r.air2, c=[x.saLoad,r.oa.oa,x.saCa,x.saTemp], gi=gk.indexOf(x.govKey);
+     return `<tr class="on">${td(r.name,0,'')}${td(x.dT,2)}${c.map((v,j)=>`<td class="n${j===gi?' hl':''}">${fmt(v)}</td>`).join('')}<td class="n hl">${fmt(x.saFinal)}</td>${td(`${nums[gi]} ${x.gov}`,0,'c')}${td(x.achActual,1)}</tr>`; }).join('')}
+   <tr class="tot"><td>TOTAL</td><td></td>${td(a2.saLoad)}${td(oa.oa)}${td(a2.saCa)}${td(a2.saTemp)}<td class="n hl">${fmt(a2.saFinal)}</td>${td('Σ ROOMS',0,'c')}${td(a2.achActual,1)}</tr></table>
+  <div class="eq">ΔT = Room temp. − Coil leaving (dew) ${fmt(a.DP.db,2)}℃ (${esc(a.applied.dewName)})
+① S.A = Room load ÷ 0.29 ÷ ΔT (ROUNDUP 10)   ② O.A (2-2)   ③ C.A × ratio   ④ Volume × temp.-deviation air changes
+FINAL S.A = MAX(①②③④) per room · AHU S.A = Σ rooms</div>
+  <table class="rt"><tr><th>ROOM NAME</th><th>C.A<br>(CMH)</th><th>C.A BASIS</th><th>BFU<br>(EA)</th><th>BFU BASIS (C.A − S.A)</th><th>HFB<br>(EA)</th><th>HFB BASIS (S.A)</th></tr>
+   ${RR.map(r=>`<tr>${td(r.name,0,'')}${td(r.air2.ca)}${td(`${fmt(r.vol)} m³ × ${r.U.ach} (${clsL(r)})`,0,'')}${td(r.bfu.qty)}${td(`(${fmt(r.air2.ca)}−${fmt(r.air2.saFinal)}) ÷ ${r.rm.bfuCMM} ÷ 60 × ${r.rm.bfuSF}${r.bfu.manual?' (manual)':''}`,0,'')}${td(r.bfu.hfbSel)}${td(`${fmt(r.air2.saFinal)} ÷ ${r.rm.hfbCMM} ÷ 60 × ${r.rm.hfbSF}${r.bfu.hfbManual?' (manual)':''}`,0,'')}</tr>`).join('')}
+   ${one?'':`<tr class="tot"><td>TOTAL</td>${td(a2.ca)}<td></td>${td(R.bfu.qty)}<td></td>${td(R.bfu.hfbSel)}<td></td></tr>`}</table>
+  <h3>2-6. AHU SUMMARY</h3>
+  <table class="rt"><tr><th>AHU</th><th>Q'TY</th><th>ROOMS</th><th>ROOM COOLING<br>(kcal/h)</th><th>ROOM HEATING<br>(kcal/h)</th><th>S.A<br>(CMH)</th><th>R.A<br>(CMH)</th><th>O.A<br>(CMH)</th><th>O.A RATIO</th></tr>
+   <tr>${td(S.ahuTag,0,'c')}${td(n)}${td(RR.length)}${td(R.per.rsh)}${td(R.per.heat)}${td(R.per.sa)}${td(R.per.ra)}${td(R.per.oa)}${td(fmt(R.per.oaRatio*100,1)+' %')}</tr></table>
+  <p class="note">* 대당 값 = 룸 합계 ÷ AHU 대수 · 사내 기준 공조기 1대 S.A 최대 ${fmt(AHU_MAX_SA)} CMH (권장 ${Math.ceil(a2.saFinal/AHU_MAX_SA)}대 이상, 현재 대당 ${fmt(A.sa)} CMH)</p>`;
+  pages.push(p3b);
+
 
   // p4: AHU coil calc
   const sp = (x,d)=>fmt(x,d);
@@ -1355,7 +1390,7 @@ F.A = ${fmt(rm.persons)} 人 × ${S.faPerPerson} CMH/人 = ${fmt(oa.fa)} CMH</di
   <div class="lbl">* GIVEN DATA</div>
   <div class="eq">R.S.H = ${sp(A.rsh)} kcal/h      R.L.H = ${sp(A.rlh)} kcal/h      OUT AIR VOLUME = ${sp(A.oa)} CMH</div>
   <div class="lbl">* REQ'D DEHUMIDIFIED AIR Q'TY</div>
-  <div class="eq">Q = ${sp(A.rsh+A.rlh)} kcal/h ÷ (0.29 × (${a.RM.db} − ${fmt(a.DP.db,2)})℃) = ${sp(A.saReq)} CMH  →  적용 <b>${sp(A.sa)} CMH</b></div>
+  <div class="eq">Q = ${sp(A.rsh+A.rlh)} kcal/h ÷ (0.29 × (${rdb} − ${fmt(a.DP.db,2)})℃) = ${sp(A.saReq)} CMH  →  적용 <b>${sp(A.sa)} CMH</b></div>
   <div class="lbl">* ENT. AIR ENTHALPY (E.E)</div>
   <div class="eq">E.E = (${sp(A.ra)} CMH × ${sp(a.RM.h,3)} + ${sp(A.oa)} CMH × ${sp(a.S.h,3)}) ÷ ${sp(A.sa)} CMH = ${sp(A.ee,3)} kcal/kg</div>
   <div class="lbl">* LVG. AIR ENTHALPY (L.E) / MID POINT</div>
@@ -1370,11 +1405,11 @@ ${sp(A.reRaw)} kcal/h × ${S.coolSF} (S.F) = <b>${sp(A.re)} kcal/h</b>   (CHW ${
 
   <h3>3-3. HEATING COIL${A.heatOff?' — NOT USED (미사용)':''}</h3>
   ${A.heatOff?'<p class="note"><b>HEATING COIL NOT USED</b> — 히팅 미사용으로 계산에서 제외 (용량 0). 하절기 재열 없음: 급기 온도 = 코일 출구 온도.</p>':`<div class="lbl">* 동절기 난방 — WINTER HEATING  (HEATING LOAD ${sp(A.heatLoad)} kcal/h)</div>
-  <div class="eq">E.T = (${sp(A.ra)} × ${a.RM.db}℃ + ${sp(A.oa)} × ${a.W.db}℃) ÷ ${sp(A.sa)} = ${sp(A.et,2)} ℃
-L.T = ${a.RM.db}℃ + ${sp(A.heatLoad)} ÷ (0.29 × ${sp(A.sa)}) = ${sp(A.lt,2)} ℃
+  <div class="eq">E.T = (${sp(A.ra)} × ${rdb}℃ + ${sp(A.oa)} × ${a.W.db}℃) ÷ ${sp(A.sa)} = ${sp(A.et,2)} ℃
+L.T = ${rdb}℃ + ${sp(A.heatLoad)} ÷ (0.29 × ${sp(A.sa)}) = ${sp(A.lt,2)} ℃
 ${sp(A.sa)} CMH × 0.29 × (${sp(A.lt,2)} − ${sp(A.et,2)}) = ${sp(A.heatRaw)} kcal/h × ${S.heatSF} = <b>${sp(A.heatCap)} kcal/h</b></div>
   <div class="lbl">* 하절기 난방 — SUMMER RE-HEATING (after dehumidification)</div>
-  <div class="eq">S.A Temp = ${a.RM.db} − (${sp(L.total)} − ${sp(L.proc)}) ÷ ${n} ÷ (0.29 × ${sp(A.sa)}) = ${sp(A.tsup,2)} ℃
+  <div class="eq">S.A Temp = ${rdb} − (${sp(L.total)} − ${sp(L.proc)}) ÷ ${n} ÷ (0.29 × ${sp(A.sa)}) = ${sp(A.tsup,2)} ℃
 ${sp(A.sa)} CMH × 0.29 × (${sp(A.tsup,2)} − ${fmt(a.DP.db,2)}) = ${sp(A.reheatRaw)} kcal/h × ${S.heatSF} = <b>${sp(A.reheat)} kcal/h</b></div>
   <div class="eq">동절기 난방 ${sp(A.heatCap)} kcal/h (${sp(A.heatWKw,1)} kW) · 하절기 난방 ${sp(A.reheat)} kcal/h (${sp(A.heatSKw,1)} kW) → HEATER 선정 MAX = <b>${sp(A.heatSel)} kcal/h</b> (${sp(A.heatKw,1)} kW)</div>`}
 
@@ -1413,20 +1448,26 @@ ${sp(A.sa)} CMH × 1.2 × (${sp(A.lh,6)} − ${sp(A.eh,6)}) = ${sp(A.humRaw,1)} 
   <table class="rt"><tr><th style="width:26%">ITEM</th><th>SPECIFICATION (1대 기준)</th><th style="width:28%">REMARKS</th></tr>
    <tr>${td('SUPPLY AIR VOLUME',0,'')}${td(`${sp(A.sa)} CMH (${sp(A.sa/60)} CMM)`,0,'')}${td('',0,'')}</tr>
    <tr>${td('OUTSIDE AIR VOLUME',0,'')}${td(`${sp(A.oa)} CMH (${sp(A.oa/60)} CMM)`,0,'')}${td('',0,'')}</tr>
-   <tr>${td('PRE COOLING CAP.',0,'')}${td(`${sp(A.pre)} kcal/h (${cvr(A.pre)}${S.coolType==='CW'?`, ${sp(A.preLpm)} LPM`:''})`,0,'')}${td(S.coolType==='CW'?`${S.cwSupply}~${S.cwSupply+S.cwDT}℃ Chilled Water`:'Air cooled DX',0,'')}</tr>
-   <tr>${td('RE COOLING CAP.',0,'')}${td(`${sp(A.re)} kcal/h (${cvr(A.re)}${S.coolType==='CW'?`, ${sp(A.reLpm)} LPM`:''})`,0,'')}${td(S.coolType==='CW'?`${S.cwSupply}~${S.cwSupply+S.cwDT}℃ Chilled Water`:'Air cooled DX',0,'')}</tr>
+   ${A.twoCoil?`   <tr>${td('PRE COOLING CAP.',0,'')}${td(`${sp(A.pre)} kcal/h (${cvr(A.pre)}${S.coolType==='CW'?`, ${sp(A.preLpm)} LPM`:''})`,0,'')}${td(S.coolType==='CW'?`${S.cwSupply}~${S.cwSupply+S.cwDT}℃ Chilled Water`:'Air cooled DX',0,'')}</tr>
+   <tr>${td('RE COOLING CAP.',0,'')}${td(`${sp(A.re)} kcal/h (${cvr(A.re)}${S.coolType==='CW'?`, ${sp(A.reLpm)} LPM`:''})`,0,'')}${td(S.coolType==='CW'?`${S.cwSupply}~${S.cwSupply+S.cwDT}℃ Chilled Water`:'Air cooled DX',0,'')}</tr>`:`<tr>${td('COOLING CAP. (1 COIL)',0,'')}${td(`${sp(A.cool)} kcal/h (${cvr(A.cool)}${S.coolType==='CW'?`, ${sp(A.preLpm+A.reLpm)} LPM`:''})`,0,'')}${td(S.coolType==='CW'?`${S.cwSupply}~${S.cwSupply+S.cwDT}℃ Chilled Water`:'Air cooled DX',0,'')}</tr>`}
    <tr>${td('HEATING CAP. (WINTER)',0,'')}${td(A.heatOff?'NOT USED (미사용)':`${sp(A.heatCap)} kcal/h (${sp(A.heatWKw,1)} kW)`,0,'')}${td(`${S.heatSource} · 동절기 난방`,0,'')}</tr>
    <tr>${td('HEATING CAP. (SUMMER)',0,'')}${td(A.heatOff?'NOT USED (미사용)':`${sp(A.reheat)} kcal/h (${sp(A.heatSKw,1)} kW)`,0,'')}${td(`${S.heatSource} · 하절기 난방(재열)`,0,'')}</tr>
    <tr>${td('HUMIDITY CAP.',0,'')}${td(A.humOff?'NOT USED (미사용)':`${sp(A.hum)} kg/h`,0,'')}${td(S.humType,0,'')}</tr>
 </table>
   <h3>3-9. H.V.A.C EQUIPMENT SCHEDULE</h3>
-  <table class="rt"><tr><th rowspan="2">EQUIP. NO</th><th rowspan="2">Q'TY</th><th colspan="2">SUPPLY AIR (CMH)</th><th colspan="2">HEATING WINTER (kcal/h)</th><th colspan="2">HEATING SUMMER (kcal/h)</th><th colspan="2">HUMIDITY (kg/h)</th><th colspan="3">COOLING (kcal/h)</th></tr>
-   <tr><th>SUB</th><th>TOTAL</th><th>SUB</th><th>TOTAL</th><th>SUB</th><th>TOTAL</th><th>SUB</th><th>TOTAL</th><th>PRE</th><th>RE</th><th>TOTAL</th></tr>
-   <tr>${td(S.ahuTag,0,'c')}${td(n)}${td(A.sa)}${td(T.sa)}${td(A.heatCap)}${td(T.heatW)}${td(A.reheat)}${td(T.heatS)}${td(A.hum)}${td(T.hum)}${td(A.pre)}${td(A.re)}${td(T.cool)}</tr>
-   <tr class="tot"><td>TOTAL</td><td></td><td></td>${td(T.sa)}<td></td>${td(T.heatW)}<td></td>${td(T.heatS)}<td></td>${td(T.hum)}<td></td><td></td>${td(T.cool)}</tr></table>
+  <div class="lbl">* AIR VOLUME · HEATING</div>
+  <table class="rt"><tr><th rowspan="2" style="width:14%">EQUIP. NO</th><th rowspan="2" style="width:7%">Q'TY</th><th colspan="2">SUPPLY AIR (CMH)</th><th colspan="2">HEATING WINTER (kcal/h)</th><th colspan="2">HEATING SUMMER (kcal/h)</th></tr>
+   <tr><th>SUB</th><th>TOTAL</th><th>SUB</th><th>TOTAL</th><th>SUB</th><th>TOTAL</th></tr>
+   <tr>${td(S.ahuTag,0,'c')}${td(n)}${td(A.sa)}${td(T.sa)}${A.heatOff?'<td class="c" colspan="4">NOT USED (미사용)</td>':td(A.heatCap)+td(T.heatW)+td(A.reheat)+td(T.heatS)}</tr>
+   <tr class="tot"><td>TOTAL</td><td></td><td></td>${td(T.sa)}${A.heatOff?'<td colspan="4"></td>':`<td></td>${td(T.heatW)}<td></td>${td(T.heatS)}`}</tr></table>
+  <div class="lbl">* HUMIDIFICATION · COOLING</div>
+  <table class="rt"><tr><th rowspan="2" style="width:14%">EQUIP. NO</th><th rowspan="2" style="width:7%">Q'TY</th><th colspan="2">HUMIDITY (kg/h)</th><th colspan="4">COOLING (kcal/h)</th></tr>
+   <tr><th>SUB</th><th>TOTAL</th><th>PRE (SUB)</th><th>RE (SUB)</th><th>SUB</th><th>TOTAL</th></tr>
+   <tr>${td(S.ahuTag,0,'c')}${td(n)}${A.humOff?'<td class="c" colspan="2">NOT USED</td>':td(A.hum)+td(T.hum)}${A.twoCoil?td(A.pre)+td(A.re):'<td class="c" colspan="2">1 COIL</td>'}${td(A.cool)}${td(T.cool)}</tr>
+   <tr class="tot"><td>TOTAL</td><td></td><td></td>${A.humOff?'<td></td>':td(T.hum)}<td></td><td></td><td></td>${td(T.cool)}</tr></table>
   <table class="rt"><tr><th style="width:26%">TOTAL COOLING</th><td class="n hl">${sp(T.cool)} kcal/h (${cvr(T.cool)})</td></tr>
-   ${S.coolType==='CW'?`<tr><th>CHILLED WATER</th><td class="n">${sp(T.cwLpm)} LPM (ΔT ${S.cwDT}℃)</td></tr>`:''}
-   <tr><th>REQUIRED CHILLER CAP.</th><td class="n">${sp(T.chReq,1)} RT</td></tr>
+   ${(T.chAir.rt>0||T.chWater.rt>0)?`${S.coolType==='CW'?`<tr><th>CHILLED WATER</th><td class="n">${sp(T.cwLpm)} LPM (ΔT ${S.cwDT}℃)</td></tr>`:''}
+   <tr><th>REQUIRED CHILLER CAP.</th><td class="n">${sp(T.chReq,1)} RT</td></tr>`:''}
    ${Object.values(CH_TYPES).map(v=>{ const c=T[v.tKey]; return c.rt>0?`<tr><th>${v.en} (REF.)</th><td class="n">${fmt(c.rt)} RT × ${c.qty} EA = ${fmt(c.total)} RT (${fmt(c.total*S.coolKcal)} kcal/h) · req. ${sp(c.perReq,1)} RT/unit · margin ${sp((c.margin-1)*100,1)}%</td></tr>`:''; }).join('')}</table>
   <p class="note">Cooling capacity conversion: 1 ${cu()} = ${fmt(S.coolKcal)} kcal/h (${S.coolType==='DX'?'air cooled DX':'water cooled'}) </p>`;
   pages.push(p6);
@@ -1459,11 +1500,11 @@ $('btnReset').onclick=()=>{ S=clone(DEFAULTS); $('side').innerHTML=''; buildInpu
 function applyLoaded(o){
   if(o && o.app==='crLoadCalc' && o.data) o=o.data;
   if(!o || typeof o!=='object' || Array.isArray(o)) throw new Error('bad');
-  S=Object.assign(clone(DEFAULTS),o); $('side').innerHTML=''; buildInputs(); update();
+  S=normState(o); $('side').innerHTML=''; buildInputs(); update();
 }
 $('btnCopy').onclick=()=>{
   const d=new Date(), p2=x=>String(x).padStart(2,'0'), stamp=`${d.getFullYear()}${p2(d.getMonth()+1)}${p2(d.getDate())}_${p2(d.getHours())}${p2(d.getMinutes())}`;
-  const name=`HVAC_LOAD_${([S.project,S.zone].filter(Boolean).join('_')||S.roomName||'INPUT').replace(/[\\/:*?"<>|\s]+/g,'_')}_${stamp}.json`;
+  const name=`HVAC_LOAD_${([S.project,S.zone].filter(Boolean).join('_')||(S.rooms[0]&&S.rooms[0].name)||'INPUT').replace(/[\\/:*?"<>|\s]+/g,'_')}_${stamp}.json`;
   const txt=JSON.stringify({app:'crLoadCalc',version:1,savedAt:d.toISOString(),data:S},null,1);
   try{
     const url=URL.createObjectURL(new Blob([txt],{type:'application/json'}));
