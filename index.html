@@ -149,27 +149,40 @@ input.req:placeholder-shown{border-color:var(--warn);background:var(--reqbg)}
 .rtab td input.dis{opacity:.35}.rtab td.ro{background:var(--autobg);font-weight:700;color:var(--blue);padding:2px 6px}
 .rtab .stk{position:sticky;left:0;z-index:2;background:var(--sheet)}.rtab .stk2 input{font-weight:600}.rtab .stk2{left:62px;box-shadow:2px 0 0 var(--rule)}.rtab td.act{min-width:62px;max-width:62px}.rtab td.act{white-space:nowrap;padding:0 4px;text-align:center}.rtab td.act b{font-family:var(--f-num);margin-right:2px}
 /* rooms as wrapping cards (no horizontal scroll) */
-.rcards{display:flex;flex-direction:column;gap:10px;padding:12px 14px 8px}
+.rcards{display:flex;flex-direction:column;gap:8px;padding:10px 12px 6px}
+.rstrip{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 14px;padding:4px 10px;background:var(--soft);border-bottom:1px solid var(--rule);font-size:11px}
+.rstrip .rsl{font-weight:700;color:var(--accent);margin-right:2px}
+.rstrip .rsi{white-space:nowrap}.rstrip .rsi i{font-style:normal;color:var(--muted);margin-right:4px}
+.rstrip .rsi b{font-family:var(--f-num);font-weight:700;color:var(--blue)}.rstrip .rsi small{color:var(--muted);margin-left:2px;font-size:10px}
+details.rstd{border-top:1px dashed var(--rule)}
+details.rstd>summary{list-style:none;display:grid;grid-template-columns:76px minmax(0,1fr) auto;align-items:center;gap:8px;cursor:pointer;font-size:11px;padding-right:10px}
+details.rstd>summary::-webkit-details-marker{display:none}details.rstd>summary::after{display:none}
+details.rstd>summary>b{font-size:11px;color:var(--muted);padding:6px 8px;background:var(--soft);border-right:1px solid var(--rule);align-self:stretch;display:flex;align-items:center;gap:4px}
+details.rstd>summary>b::before{content:"▸";color:var(--muted)}details.rstd[open]>summary>b::before{content:"▾"}
+details.rstd>summary .rsumt{font-family:var(--f-num);color:var(--muted);line-height:1.5;padding:4px 0}details.rstd>summary .sep{color:var(--rule);margin:0 4px}
+details.rstd>summary .rhint{color:var(--muted);font-size:10.5px;opacity:.8;white-space:nowrap}
+details.rstd[open]>summary{border-bottom:1px dashed var(--rule)}details.rstd[open]>summary .rsumt{display:none}
+details.rstd .rgrp:last-child{border-bottom:0}
 .rcard{border:1px solid var(--rule);border-radius:6px;background:var(--sheet);overflow:hidden}
-.rcard-h{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--th);border-bottom:1px solid var(--rule)}
+.rcard-h{display:flex;align-items:center;gap:8px;padding:4px 8px;background:var(--th);border-bottom:1px solid var(--rule)}
 .rcard-h .rno{font-family:var(--f-num);font-weight:700;color:var(--accent);min-width:20px}
-.rcard-h input{max-width:300px;font-weight:600;height:28px}
+.rcard-h input{max-width:300px;font-weight:600;height:26px}
 .rcard-h .sp{flex:1}
-.rgrp{display:grid;grid-template-columns:96px minmax(0,1fr);border-bottom:1px dashed var(--rule)}
+.rgrp{display:grid;grid-template-columns:76px minmax(0,1fr);border-bottom:1px dashed var(--rule)}
 .rgrp:last-child{border-bottom:0}
-.rgrp>b{font-size:11.5px;color:var(--accent);padding:9px 10px;background:var(--soft);border-right:1px solid var(--rule)}
-.rflds{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:6px 8px;padding:6px 10px 8px}
-.rf{display:flex;flex-direction:column;gap:2px;min-width:0}
+.rgrp>b{font-size:11px;color:var(--accent);padding:6px 8px;background:var(--soft);border-right:1px solid var(--rule)}
+.rflds{display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:2px 6px;padding:4px 8px 5px}
+.rf{display:flex;flex-direction:column;gap:1px;min-width:0}
 .rf.w2{grid-column:span 2}
-.rf label{font-size:11px;font-weight:600;line-height:1.25;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rf label{font-size:10.5px;font-weight:600;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .rf label small{font-weight:400;color:var(--muted);margin-left:3px;font-size:10px}
 .rf.au label{color:var(--muted)}
-.rf input,.rf select{height:27px;padding:3px 5px;font-size:12px}
+.rf input,.rf select{height:24px;padding:2px 5px;font-size:11.5px}
 .rf .ro{height:27px;display:flex;align-items:center;justify-content:flex-end;gap:4px;padding:0 6px;border-radius:3px;background:var(--autobg);border:1px solid var(--rule);font-family:var(--f-num);font-weight:700;color:var(--blue);font-size:12px;white-space:nowrap;overflow:hidden}
 .rcard input.ra:placeholder-shown{background:var(--autobg)}.rcard input.ra::placeholder{color:var(--muted);opacity:1}.rcard input.ra:not(:placeholder-shown){color:var(--warn);font-weight:600}
 .rcard input.dis{opacity:.35}
 .rcard input.kwreq{border:1px solid var(--warn)!important;background:var(--reqbg)!important}
-@media (max-width:700px){.rgrp{grid-template-columns:minmax(0,1fr)}.rgrp>b{border-right:0;border-bottom:1px solid var(--rule);padding:5px 10px}.rflds{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}.rf.w2{grid-column:auto}}
+@media (max-width:700px){details.rstd>summary{grid-template-columns:minmax(0,1fr)}details.rstd>summary .rhint{display:none}.rgrp{grid-template-columns:minmax(0,1fr)}.rgrp>b{border-right:0;border-bottom:1px solid var(--rule);padding:5px 10px}.rflds{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}.rf.w2{grid-column:auto}}
 .row-b{border:0;background:none;color:var(--muted);font-size:13px;padding:0 3px}.row-b:hover{color:var(--accent)}
 .rbar{display:flex;gap:12px;align-items:center;flex-wrap:wrap;padding:0 14px 8px}
 .rres{font-size:11.5px}.rres th{font-size:10.5px;line-height:1.2;white-space:nowrap}.rres th small{display:block;font-weight:400;color:var(--muted)}.rres td{padding:3px 6px!important;white-space:nowrap}
@@ -837,16 +850,16 @@ const RCOLS = [
    ['roomRHtol','습도편차','±%','num',48],['illum','조도','LUX','sel',60,{opts:()=>[[300,'300'],[500,'500'],[700,'700']],num:1}],
    ['personDensity','재실밀도','인/m²','num',54],['persons','재실인원','인','auto',58]]},
  {g:'배기 E.A', c:[['eaGen','일반 배기','CMH','num',72],['eaProc','공정 배기','CMH','num',68],['eaSaRatio','S.A 기준','% of S.A','num',54],['_ea','총 배기','CMH','out',76]]},
- {g:'부하 원단위', c:[['bldgUnit','건물','kcal/h·m²','num',54],['heatUnit','난방','kcal/h·m²','num',54],['lightUnit','조명','kcal/h·m²','auto',54],
+ {g:'부하 원단위', std:1, c:[['bldgUnit','건물','kcal/h·m²','num',54],['heatUnit','난방','kcal/h·m²','num',54],['lightUnit','조명','kcal/h·m²','auto',54],
    ['lightFactor','조명 할증','×','num',48],['personSH','인체','kcal/h·인','auto',54],['roomSF','안전율','%','num',46]]},
  {g:'공정 부하', c:[['procMode','공정부하','','sel',112,{opts:()=>[['density','모를 때 (면적당)'],['power','알 때 (kW 입력)']]}],['targetDensity','목표 밀도','kcal/h·m²','auto',60],
    ['densityKw','POWER','kW','auto',72],['_pl','POWER LOAD','kcal/h','out',84],
    ['pcwLpm','PCW 유량','LPM','num',56],['pcwDT','PCW ΔT','℃','num',44],['_pcw','PCW 제거열','kcal/h','out',78],
    ['exCmh','공정배기','CMH','num',60],['exDT','배기 ΔT','℃','num',44],['_ex','배기 제거열','kcal/h','out',74],
    ['densityRate','부하율','%','num',46],['_ac','A/C 부하','kcal/h','out',84],['_dens','부하밀도','kcal/h·m² · 판정','out',96]]},
- {g:'풍량 기준', c:[['ach','C.A 환기','회/h','auto',54],['paFactor','가압 계수','× 실용적','auto',54],['faPerPerson','1인 외기','CMH/인','auto',54],
+ {g:'풍량 기준', std:1, c:[['ach','C.A 환기','회/h','auto',54],['paFactor','가압 계수','× 실용적','auto',54],['faPerPerson','1인 외기','CMH/인','auto',54],
    ['tempACH','온도편차 환기','회/h','auto',58],['caRatio','S.A 최소','% of C.A','num',54]]},
- {g:'BFU · HFB', c:[['bfuCMM','BFU','CMM','num',48],['bfuSF','BFU 여유','×','num',46],['bfuW','BFU 전력','W','num',50],['bfuFactor','발열 계수','×','num',46],
+ {g:'BFU · HFB', std:1, c:[['bfuCMM','BFU','CMM','num',48],['bfuSF','BFU 여유','×','num',46],['bfuW','BFU 전력','W','num',50],['bfuFactor','발열 계수','×','num',46],
    ['bfuQty','BFU 수량','대','auto',54],['fanLoad','FAN 발열','kcal/h','auto',64],['hfbCMM','HFB','CMM','num',48],['hfbSF','HFB 여유','×','num',46],['hfbQty','HFB 수량','대','auto',54]]},
 ];
 function roomCell(r,i,[k,h,u,t,w,o={}]){
@@ -872,6 +885,8 @@ function roomField(r,i,[k,h,u,t,w,o={}]){
   const wide = w>=100 || k==='_dens';
   return `<div class="rf${wide?' w2':''}${t==='auto'?' au':''}"><label title="${esc(h)}${u?' ('+esc(u)+')':''}">${h}${u?`<small>${u}</small>`:''}</label>${ctl}</div>`;
 }
+const RSTD_OPEN=new Set();   // rooms whose standard-value groups are unfolded (UI only)
+document.addEventListener('toggle',e=>{ const d=e.target; if(d.classList&&d.classList.contains('rstd')){ d.open?RSTD_OPEN.add(d.dataset.rid):RSTD_OPEN.delete(d.dataset.rid); } },true);
 function roomsHTML(){
   const cols=RCOLS.flatMap(g=>g.c);
   const head1=`<tr><th class="stk" rowspan="2" style="min-width:62px">#</th>${RCOLS.map(g=>`<th colspan="${g.c.length}" class="grp">${g.g}</th>`).join('')}</tr>`;
@@ -882,10 +897,16 @@ function roomsHTML(){
     <button type="button" data-pmodeall="density" aria-pressed="${allD}"><b>공정부하를 모를 때 · 면적당 부하 기준</b><small>목표 부하밀도(클린룸 150~200 / 일반룸 약 100)에서 A/C 부하·kW 역산 · PCW·공정배기 제거열 반영 · kW 임의 입력도 가능</small></button>
     <button type="button" data-pmodeall="power" aria-pressed="${allP}"><b>공정부하를 알 때 · 장비 전력 입력</b><small>생산설비 전기용량 kW − PCW 제거열 − 공정배기 제거열 → × 부하율 </small></button></div>
     ${!allD&&!allP?'<span class="pill w">룸별 혼합 적용</span>':''}<span class="u" style="font-size:11.5px">버튼 = 전체 룸 일괄 적용 · 룸별로는 표의 "공정부하" 칸에서 선택</span></div>`;
+  // compact card: inputs only in the grids · calculated values in one strip · standard-value groups folded
+  const outs=RCOLS.flatMap(g=>g.c).filter(c=>c[3]==='out');
+  const grp=(g,r,i)=>{ const cs=g.c.filter(c=>c[0]!=='name'&&c[3]!=='out'); return `<div class="rgrp"><b>${g.g}</b><div class="rflds">${cs.map(c=>roomField(r,i,c)).join('')}</div></div>`; };
   const cards=S.rooms.map((r,i)=>`<div class="rcard">
     <div class="rcard-h"><span class="rno">${i+1}</span><input data-rm="${i}" data-f="name" value="${esc(r.name)}" aria-label="실명" title="실명"><span class="sp"></span>
       <button class="row-b" data-cprm="${i}" title="룸 복사" aria-label="룸 복사">⧉ 룸 복사</button><button class="row-x" data-delrm="${i}" title="룸 삭제" aria-label="룸 삭제">×</button></div>
-    ${RCOLS.map(g=>{ const cs=g.c.filter(c=>c[0]!=='name'); return `<div class="rgrp"><b>${g.g}</b><div class="rflds">${cs.map(c=>roomField(r,i,c)).join('')}</div></div>`; }).join('')}
+    <div class="rstrip"><span class="rsl">계산값</span>${outs.map(([k,h,u])=>`<span class="rsi"><i>${h}</i><b id="ro_${i}_${k}"></b>${k==='_dens'?'':`<small>${u}</small>`}</span>`).join('')}</div>
+    ${RCOLS.filter(g=>!g.std).map(g=>grp(g,r,i)).join('')}
+    <details class="rstd" data-rid="${esc(r.id)}"${RSTD_OPEN.has(r.id)?' open':''}><summary><b>표준값</b><span class="rsumt" id="rsum_${i}"></span><span class="rhint">부하 원단위 · 풍량 기준 · BFU/HFB — 눌러서 펼치기/수정</span></summary>
+      ${RCOLS.filter(g=>g.std).map(g=>grp(g,r,i)).join('')}</details>
   </div>`).join('');
   return seg+`<div class="rcards">${cards}</div>
     <div class="rbar"><button class="btn" id="addRoom">+ 룸 추가</button>
@@ -1188,6 +1209,9 @@ function update(){
       so('ac', fmt(pt.N), `(POWER LOAD − PCW − 배기) × 부하율${d&&!d.manual?' · 목표 밀도에서 역산':''}`);
       const out=densOut(r,rr.L.density); so('dens', `<span style="color:${out?'var(--warn)':'var(--ok)'}">${fmt(rr.L.density,1)}</span> <span class="pill${out?' w':''}" style="font-size:10px">${out?'기준 밖':'기준 내'}</span>`, `사내 기준 ${densStd(r)} kcal/h·m²`); }
     { const vv=$(`ro_${i}__vol`); if(vv){ vv.textContent=fmt(rr.vol); vv.title=`면적 ${fmt(rr.area)} × 천장고 ${rr.ch}`; } }
+    { const el=$(`rsum_${i}`); if(el){ const U=rr.U, d0=defaultRoom(1), stdKeys=RCOLS.filter(g=>g.std).flatMap(g=>g.c).filter(c=>c[3]!=='out').map(c=>c[0]);
+        const man=stdKeys.filter(k=>AUTO_KEYS.includes(k)||['bfuQty','fanLoad','hfbQty'].includes(k)?!isBlank(r[k]):String(r[k])!==String(d0[k])).length;
+        el.innerHTML=`건물 ${fmt(U.bldg)} · 난방 ${fmt(U.heat)} · 조명 ${fmt(U.light)}×${U.lightF} · 인체 ${fmt(U.personSH)} · S.F ${fmt(U.sf)}% <span class="sep">|</span> C.A ${fmt(U.ach)}회 · 가압 ×${rr.paFactor} · 외기 ${fmt(rr.faPP)} · 온도편차 ${fmt(U.tempACH)}회 · S.A≥${fmt(U.caRatio)}% <span class="sep">|</span> BFU ${fmt(rr.bfu.qty)}대 · HFB ${fmt(rr.bfu.hfbSel)}대${man?` <span class="pill w" style="font-size:10px">직접 입력 ${man}</span>`:''}`; } }
     const o=$(`ro_${i}__ea`); if(o){ o.textContent=fmt(rr.oa.ea); o.title=`일반 ${fmt(rr.oa.eaGen)} + 공정 ${fmt(rr.oa.eaProc)} + S.A × ${fmt(rr.oa.eaRatio)}% (${fmt(rr.oa.eaSa)})`; }
   });
   if($('roomRes')) $('roomRes').innerHTML = R.ready ? roomResultsHTML() : `<div class="empty">룸별 <b>면적</b>을 입력하면 계산 결과가 표시됩니다: ${esc(MISSING().join(', '))}</div>`;
