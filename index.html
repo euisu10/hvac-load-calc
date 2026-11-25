@@ -181,6 +181,8 @@ details.rstd .rgrp:last-child{border-bottom:0}
 .rf .ro{height:27px;display:flex;align-items:center;justify-content:flex-end;gap:4px;padding:0 6px;border-radius:3px;background:var(--autobg);border:1px solid var(--rule);font-family:var(--f-num);font-weight:700;color:var(--blue);font-size:12px;white-space:nowrap;overflow:hidden}
 .rcard input.ra:placeholder-shown{background:var(--autobg)}.rcard input.ra::placeholder{color:var(--muted);opacity:1}.rcard input.ra:not(:placeholder-shown){color:var(--warn);font-weight:600}
 .rcard input.dis{opacity:.35}
+.eacalc{grid-column:1/-1;margin-top:3px;padding:4px 8px;border:1px dashed var(--rule);border-radius:3px;background:var(--soft);font-family:var(--f-num);font-size:11px;line-height:1.65;color:var(--muted)}
+.eacalc b{color:var(--blue);font-weight:700}.eacalc .tt{color:var(--accent);font-family:var(--f-body);font-weight:700;margin-right:4px}.eacalc .hint{color:var(--warn);font-family:var(--f-body)}
 .rcard input.kwreq{border:1px solid var(--warn)!important;background:var(--reqbg)!important}
 @media (max-width:700px){details.rstd>summary{grid-template-columns:minmax(0,1fr)}details.rstd>summary .rhint{display:none}.rgrp{grid-template-columns:minmax(0,1fr)}.rgrp>b{border-right:0;border-bottom:1px solid var(--rule);padding:5px 10px}.rflds{grid-template-columns:repeat(auto-fill,minmax(92px,1fr))}.rf.w2{grid-column:auto}}
 .row-b{border:0;background:none;color:var(--muted);font-size:13px;padding:0 3px}.row-b:hover{color:var(--accent)}
@@ -808,7 +810,7 @@ const clone = o => JSON.parse(JSON.stringify(o));
 function normState(o){
   const m = migrateState(clone(o||{}));
   const n = Object.assign(clone(DEFAULTS), m);
-  n.rooms = (n.rooms&&n.rooms.length?n.rooms:[defaultRoom(1)]).map((r,i)=>{ const d=defaultRoom(i+1); return Object.assign(d, r, {id:r.id||d.id}); });
+  n.rooms = (n.rooms&&n.rooms.length?n.rooms:[defaultRoom(1)]).map((r,i)=>{ const d=defaultRoom(i+1); return Object.assign(d, r, {id:r.id||d.id, caRatio:50}); });
   n.equip=[];   // 공정 장비 목록(2-1B) 삭제 — 공정부하는 룸 입력(POWER kW·PCW·배기·부하율)으로만 산정
   return n;
 }
@@ -849,7 +851,7 @@ const RCOLS = [
    ['roomTtol','온도편차','±℃','sel',56,{opts:()=>[[3,'±3'],[2,'±2'],[1,'±1'],[0.5,'±0.5'],[0.1,'±0.1']],num:1}],
    ['roomRHtol','습도편차','±%','num',48],['illum','조도','LUX','sel',60,{opts:()=>[[300,'300'],[500,'500'],[700,'700']],num:1}],
    ['personDensity','재실밀도','인/m²','num',54],['persons','재실인원','인','auto',58]]},
- {g:'배기 E.A', c:[['eaGen','일반 배기','CMH','num',72],['eaProc','공정 배기','CMH','num',68],['eaSaRatio','S.A 기준','% of S.A','num',54],['_ea','총 배기','CMH','out',76]]},
+ {g:'배기 E.A', c:[['eaGen','일반 배기','CMH','num',72],['eaProc','공정 배기','CMH','num',68],['eaSaRatio','S.A 기준','% of S.A','num',54],['paFactor','가압 계수','× 실용적','auto',54],['faPerPerson','1인 외기','CMH/인','auto',54],['_ea','총 배기','CMH','out',76],['_oa','총 외기량 O.A','CMH','out',84]]},
  {g:'부하 원단위', std:1, c:[['bldgUnit','건물','kcal/h·m²','num',54],['heatUnit','난방','kcal/h·m²','num',54],['lightUnit','조명','kcal/h·m²','auto',54],
    ['lightFactor','조명 할증','×','num',48],['personSH','인체','kcal/h·인','auto',54],['roomSF','안전율','%','num',46]]},
  {g:'공정 부하', c:[['procMode','공정부하','','sel',112,{opts:()=>[['density','모를 때 (면적당)'],['power','알 때 (kW 입력)']]}],['targetDensity','목표 밀도','kcal/h·m²','auto',60],
@@ -857,8 +859,7 @@ const RCOLS = [
    ['pcwLpm','PCW 유량','LPM','num',56],['pcwDT','PCW ΔT','℃','num',44],['_pcw','PCW 제거열','kcal/h','out',78],
    ['exCmh','공정배기','CMH','num',60],['exDT','배기 ΔT','℃','num',44],['_ex','배기 제거열','kcal/h','out',74],
    ['densityRate','부하율','%','num',46],['_ac','A/C 부하','kcal/h','out',84],['_dens','부하밀도','kcal/h·m² · 판정','out',96]]},
- {g:'풍량 기준', std:1, c:[['ach','C.A 환기','회/h','auto',54],['paFactor','가압 계수','× 실용적','auto',54],['faPerPerson','1인 외기','CMH/인','auto',54],
-   ['tempACH','온도편차 환기','회/h','auto',58],['caRatio','S.A 최소','% of C.A','num',54]]},
+ {g:'풍량 기준', std:1, c:[['ach','C.A 환기','회/h','auto',54],['tempACH','온도편차 환기','회/h','auto',58]]},
  {g:'BFU · HFB', std:1, c:[['bfuCMM','BFU','CMM','num',48],['bfuSF','BFU 여유','×','num',46],['bfuW','BFU 전력','W','num',50],['bfuFactor','발열 계수','×','num',46],
    ['bfuQty','BFU 수량','대','auto',54],['fanLoad','FAN 발열','kcal/h','auto',64],['hfbCMM','HFB','CMM','num',48],['hfbSF','HFB 여유','×','num',46],['hfbQty','HFB 수량','대','auto',54]]},
 ];
@@ -898,8 +899,9 @@ function roomsHTML(){
     <button type="button" data-pmodeall="power" aria-pressed="${allP}"><b>공정부하를 알 때 · 장비 전력 입력</b><small>생산설비 전기용량 kW − PCW 제거열 − 공정배기 제거열 → × 부하율 </small></button></div>
     ${!allD&&!allP?'<span class="pill w">룸별 혼합 적용</span>':''}<span class="u" style="font-size:11.5px">버튼 = 전체 룸 일괄 적용 · 룸별로는 표의 "공정부하" 칸에서 선택</span></div>`;
   // compact card: inputs only in the grids · calculated values in one strip · standard-value groups folded
-  const outs=RCOLS.flatMap(g=>g.c).filter(c=>c[3]==='out');
-  const grp=(g,r,i)=>{ const cs=g.c.filter(c=>c[0]!=='name'&&c[3]!=='out'); return `<div class="rgrp"><b>${g.g}</b><div class="rflds">${cs.map(c=>roomField(r,i,c)).join('')}</div></div>`; };
+  const outs=RCOLS.flatMap(g=>g.c).filter(c=>c[3]==='out'&&!['_pl','_pcw','_ex'].includes(c[0]));   // POWER LOAD · PCW · 배기 제거열은 공정 부하 계산 과정 박스에 표시
+  const grp=(g,r,i)=>{ const cs=g.c.filter(c=>c[0]!=='name'&&c[3]!=='out'); const ea = g.g==='배기 E.A' ? `<div class="rf w2 au"><label title="S.A × S.A 기준 % (10 단위 올림)">S.A 기준 배기<small>적용값 CMH</small></label><div class="ro" id="easa_${i}"></div></div><div class="eacalc" id="eacalc_${i}"></div>` : g.g==='공정 부하' ? `<div class="eacalc" id="proccalc_${i}"></div>` : g.g==='BFU · HFB' ? `<div class="eacalc" id="bfucalc_${i}"></div>` : '';
+    return `<div class="rgrp"><b>${g.g}</b><div class="rflds">${cs.map(c=>roomField(r,i,c)).join('')}${ea}</div></div>`; };
   const cards=S.rooms.map((r,i)=>`<div class="rcard">
     <div class="rcard-h"><span class="rno">${i+1}</span><input data-rm="${i}" data-f="name" value="${esc(r.name)}" aria-label="실명" title="실명"><span class="sp"></span>
       <button class="row-b" data-cprm="${i}" title="룸 복사" aria-label="룸 복사">⧉ 룸 복사</button><button class="row-x" data-delrm="${i}" title="룸 삭제" aria-label="룸 삭제">×</button></div>
@@ -1183,11 +1185,11 @@ function roomResultsHTML(){
       <td class="n">${fmt(a.ca)}</td><td class="n">${fmt(r.bfu.qty)}</td><td class="n">${fmt(r.bfu.hfbSel)}</td><td class="n">${fmt(a.achActual,1)}</td></tr>`; };
   const L=R.load, a2=R.air2;
   return `<table class="tbl-in rres"><thead><tr><th>#</th><th>실명</th><th>면적<small>m²</small></th><th>체적<small>m³</small></th><th>냉방부하<small>kcal/h</small></th><th>밀도<small>kcal/h·m²</small></th><th>난방<small>kcal/h</small></th>
-    <th>총 배기<small>CMH</small></th><th>O.A<small>CMH</small></th><th>ΔT<small>℃</small></th><th>① 부하 S.A</th><th>② O.A</th><th>③ C.A×%</th><th>④ 온도편차</th><th>최종 S.A<small>CMH</small></th><th>근거</th><th>C.A<small>CMH</small></th><th>BFU</th><th>HFB</th><th>환기<small>회/h</small></th></tr></thead>
+    <th>총 배기<small>CMH</small></th><th>O.A<small>CMH</small></th><th>ΔT<small>℃</small></th><th>① 부하 S.A</th><th>② O.A</th><th>③ C.A×50%</th><th>④ 온도편차</th><th>최종 S.A<small>CMH</small></th><th>근거</th><th>C.A<small>CMH</small></th><th>BFU</th><th>HFB</th><th>환기<small>회/h</small></th></tr></thead>
     <tbody>${RR.map(row).join('')}</tbody>
     <tfoot><tr><td></td><td>TOTAL (${RR.length})</td><td class="n">${fmt(R.room.area)}</td><td class="n">${fmt(R.room.vol)}</td><td class="n">${fmt(L.total)}</td><td class="n">${fmt(L.density,1)}</td><td class="n">${fmt(L.heat)}</td><td class="n">${fmt(R.oa.ea)}</td><td class="n">${fmt(R.oa.oa)}</td><td></td>
     <td class="n">${fmt(a2.saLoad)}</td><td class="n">${fmt(R.oa.oa)}</td><td class="n">${fmt(a2.saCa)}</td><td class="n">${fmt(a2.saTemp)}</td><td class="n fin">${fmt(a2.saFinal)}</td><td class="c">Σ</td><td class="n">${fmt(a2.ca)}</td><td class="n">${fmt(R.bfu.qty)}</td><td class="n">${fmt(R.bfu.hfbSel)}</td><td class="n">${fmt(a2.achActual,1)}</td></tr></tfoot></table>
-    <p class="u" style="margin:6px 0 0;font-size:11.5px">최종 S.A = 룸별 MAX(① 부하/ΔT, ② 외기량, ③ C.A × 비율, ④ 온도편차 환기) — 파란 칸이 선정 기준 · 공조기 S.A = 룸별 최종 S.A 합계 · 코일 출구(노점) ${esc(R.air.applied.name)} ${fmt(R.air.DP.db,2)}℃ 기준</p>`;
+    <p class="u" style="margin:6px 0 0;font-size:11.5px">최종 S.A = 룸별 MAX(① 부하/ΔT, ② 외기량, ③ C.A × 50%, ④ 온도편차 환기) — 파란 칸이 선정 기준 · 공조기 S.A = 룸별 최종 S.A 합계 · 코일 출구(노점) ${esc(R.air.applied.name)} ${fmt(R.air.DP.db,2)}℃ 기준</p>`;
 }
 function update(){
   R = calculate(S);
@@ -1206,13 +1208,41 @@ function update(){
       so('pl', fmt(pt.H), `POWER ${fmt(pt.kw,1)} kW × 860${pw&&S.equip.some(q=>q.room===r.id)?' (장비 목록 포함)':''}`);
       so('pcw', fmt(pt.K), `${fmt(+r.pcwLpm||0)} LPM × ${r.pcwDT} ℃ × 60`);
       so('ex', fmt(pt.M), `${fmt(+r.exCmh||0)} CMH × 0.288 × ${r.exDT} ℃`);
+      so('oa', fmt(rr.oa.oa), `MAX(총 배기 ${fmt(rr.oa.ea)} + P.A ${fmt(rr.oa.pa)}, F.A ${fmt(rr.oa.fa)}) · ${rr.oa.governing}`);
+      { const pc=$(`proccalc_${i}`); if(pc){ const rate=pw?(+r.densityRate||100):(d?d.rate:0), kw=pt.kw, L0=rr.L;
+          const l1=`<span class="tt">① POWER LOAD</span>${fmt(kw,1)} kW × 860 = <b>${fmt(pt.H)} kcal/h</b>`;
+          const l2=`<span class="tt">② PCW 제거열</span>${fmt(+r.pcwLpm||0)} LPM × ${fmt(+r.pcwDT||0,1)}℃ × 60 = <b>${fmt(pt.K)} kcal/h</b>`;
+          const l3=`<span class="tt">③ 배기 제거열</span>${fmt(+r.exCmh||0)} CMH × 0.288 × ${fmt(+r.exDT||0,1)}℃ = <b>${fmt(pt.M)} kcal/h</b>`;
+          const raw=(pt.H-pt.K-pt.M)*rate/100;
+          const l4=`<span class="tt">④ A/C 부하</span>(① ${fmt(pt.H)} − ② ${fmt(pt.K)} − ③ ${fmt(pt.M)}) × 부하율 ${fmt(rate)}% = ${fmt(raw)} → <b>${fmt(pt.N)} kcal/h</b> (10 단위 올림)`;
+          let back='';
+          if(d&&!d.manual&&!pw){ back=`<span class="tt">역산</span>목표 ${fmt(d.target)} × 면적 ${fmt(rr.area)} ÷ ${fmt(1+rr.U.sf/100,2)} − (건물 ${fmt(L0.bldg)} + 인체 ${fmt(L0.person)} + 조명 ${fmt(L0.light)} + FAN ${fmt(L0.fan,1)}) → A/C ${fmt(pt.N)} → POWER = (${fmt(pt.N)} ÷ ${fmt(rate)}% + ② + ③) ÷ 860 = ${fmt(kw,1)} kW<br>`; }
+          pc.innerHTML = back+[l1,l2,l3,l4].join('<br>'); } }
       so('ac', fmt(pt.N), `(POWER LOAD − PCW − 배기) × 부하율${d&&!d.manual?' · 목표 밀도에서 역산':''}`);
       const out=densOut(r,rr.L.density); so('dens', `<span style="color:${out?'var(--warn)':'var(--ok)'}">${fmt(rr.L.density,1)}</span> <span class="pill${out?' w':''}" style="font-size:10px">${out?'기준 밖':'기준 내'}</span>`, `사내 기준 ${densStd(r)} kcal/h·m²`); }
     { const vv=$(`ro_${i}__vol`); if(vv){ vv.textContent=fmt(rr.vol); vv.title=`면적 ${fmt(rr.area)} × 천장고 ${rr.ch}`; } }
     { const el=$(`rsum_${i}`); if(el){ const U=rr.U, d0=defaultRoom(1), stdKeys=RCOLS.filter(g=>g.std).flatMap(g=>g.c).filter(c=>c[3]!=='out').map(c=>c[0]);
         const man=stdKeys.filter(k=>AUTO_KEYS.includes(k)||['bfuQty','fanLoad','hfbQty'].includes(k)?!isBlank(r[k]):String(r[k])!==String(d0[k])).length;
-        el.innerHTML=`건물 ${fmt(U.bldg)} · 난방 ${fmt(U.heat)} · 조명 ${fmt(U.light)}×${U.lightF} · 인체 ${fmt(U.personSH)} · S.F ${fmt(U.sf)}% <span class="sep">|</span> C.A ${fmt(U.ach)}회 · 가압 ×${rr.paFactor} · 외기 ${fmt(rr.faPP)} · 온도편차 ${fmt(U.tempACH)}회 · S.A≥${fmt(U.caRatio)}% <span class="sep">|</span> BFU ${fmt(rr.bfu.qty)}대 · HFB ${fmt(rr.bfu.hfbSel)}대${man?` <span class="pill w" style="font-size:10px">직접 입력 ${man}</span>`:''}`; } }
+        el.innerHTML=`건물 ${fmt(U.bldg)} · 난방 ${fmt(U.heat)} · 조명 ${fmt(U.light)}×${U.lightF} · 인체 ${fmt(U.personSH)} · S.F ${fmt(U.sf)}% <span class="sep">|</span> C.A ${fmt(U.ach)}회 · 온도편차 ${fmt(U.tempACH)}회 <span class="sep">|</span> BFU ${fmt(rr.bfu.qty)}대 · HFB ${fmt(rr.bfu.hfbSel)}대${man?` <span class="pill w" style="font-size:10px">직접 입력 ${man}</span>`:''}`; } }
+    { const bc=$(`bfucalc_${i}`); if(bc){ const a=rr.air2, b=rr.bfu, cmm=+r.bfuCMM||0, sf=+r.bfuSF||1, diff=a.ca-a.saFinal;
+        let l1;
+        if(b.manual) l1=`<span class="tt">① BFU 수량</span>직접 입력 <b>${fmt(b.qty)}대</b> (자동 계산값 ${fmt(b.auto)}대)`;
+        else if(!(cmm>0)) l1=`<span class="tt">① BFU 수량</span><b>0대</b> <span class="hint">· BFU CMM이 0이라 계산하지 않음</span>`;
+        else { l1=`<span class="tt">① BFU 수량</span>(C.A ${fmt(a.ca)} − S.A ${fmt(a.saFinal)}) ÷ ${fmt(cmm)} CMM ÷ 60 × ${sf} = ${fmt(Math.max(0,diff)/cmm/60*sf,2)} → <b>${fmt(b.qty)}대</b> (올림)`;
+          if(b.qty===0) l1+=`<br><span class="hint">⚠ BFU 0대 사유: 급기량 S.A ${fmt(a.saFinal)} CMH ≥ 순환풍량 C.A ${fmt(a.ca)} CMH (${esc(a.gov)} 기준) — 청정도 유지 환기량(C.A)을 AHU 급기만으로 이미 충족하므로 BFU로 추가 순환할 풍량이 없음</span>`; }
+        const l2=`<span class="tt">② FAN 발열</span>${!isBlank(r.fanLoad)?`직접 입력 <b>${fmt(rr.L.fan,1)} kcal/h</b>`:`${fmt(b.qty)}대 × ${fmt(+r.bfuW||0)} W × ${r.bfuFactor} × 0.86 = <b>${fmt(rr.L.fan,1)} kcal/h</b>`}`;
+        const l3=`<span class="tt">③ HFB 수량</span>${b.hfbManual?`직접 입력 <b>${fmt(b.hfbSel)}대</b> (자동 ${fmt(b.hfb)}대)`:`S.A ${fmt(a.saFinal)} ÷ ${fmt(+r.hfbCMM||0)} CMM ÷ 60 × ${r.hfbSF} → <b>${fmt(b.hfbSel)}대</b> (올림)`}`;
+        bc.innerHTML=[l1,l2,l3].join('<br>'); } }
     const o=$(`ro_${i}__ea`); if(o){ o.textContent=fmt(rr.oa.ea); o.title=`일반 ${fmt(rr.oa.eaGen)} + 공정 ${fmt(rr.oa.eaProc)} + S.A × ${fmt(rr.oa.eaRatio)}% (${fmt(rr.oa.eaSa)})`; }
+    { const q=rr.oa, sa=rr.air2.saFinal, pct=q.eaRatio, raw=q.eaGen+q.eaProc+q.eaSa;
+      const es=$(`easa_${i}`); if(es){ es.textContent=fmt(q.eaSa); es.title=pct?`S.A ${fmt(sa)} × ${fmt(pct)}% → 10 단위 올림`:'S.A 기준 % = 0 → 미적용'; }
+      const ec=$(`eacalc_${i}`); if(ec){
+        const l1 = pct>0
+          ? `<span class="tt">① S.A 기준 배기</span>S.A ${fmt(sa)} CMH × ${fmt(pct)}% = ${fmt(sa*pct/100)} → <b>${fmt(q.eaSa)} CMH</b> (10 단위 올림 · S.A ↔ 배기 반복 계산 수렴값)`
+          : `<span class="tt">① S.A 기준 배기</span>${fmt(pct)}% → <b>0 CMH</b> (미적용) <span class="hint">· 룸 배기량을 모를 때 S.A의 10~30% 입력</span>`;
+        const l2 = `<span class="tt">② 총 배기 E.A</span>일반 ${fmt(q.eaGen)} + 공정 ${fmt(q.eaProc)} + S.A 기준 ${fmt(q.eaSa)} = ${fmt(raw)} → <b>${fmt(q.ea)} CMH</b> (10 단위 올림)`;
+        const l3 = `<span class="tt">③ 외기량 O.A</span>MAX(총 배기 ${fmt(q.ea)} + 가압 P.A ${fmt(q.pa)}, 인원 F.A ${fmt(q.fa)}) = <b>${fmt(q.oa)} CMH</b> (${esc(q.governing)})`;
+        ec.innerHTML = `${l1}<br>${l2}<br>${l3}`; } }
   });
   if($('roomRes')) $('roomRes').innerHTML = R.ready ? roomResultsHTML() : `<div class="empty">룸별 <b>면적</b>을 입력하면 계산 결과가 표시됩니다: ${esc(MISSING().join(', '))}</div>`;
   [['coolSF',1.1],['heatSF',1.1],['humSF',1.3]].forEach(([k,std])=>{ const el=$('sf_'+k); if(!el) return; const v=+S[k]||0, pct=Math.round((v-1)*1000)/10; el.innerHTML=`현재 ×${v} = <b>+${pct}%</b> · 당사 표준 ×${std} (+${Math.round((std-1)*100)}%)${Math.abs(v-std)>1e-9?' <span style="color:var(--warn)">· 표준과 다름</span>':''}`; });
@@ -1681,7 +1711,8 @@ function buildReport(){
    ${one?'':`<tr class="tot"><td>TOTAL</td>${td(oa.eaGen)}${td(oa.eaProc)}${td(oa.eaSa)}${td(oa.ea)}${td(oa.pa)}${td(oa.fa)}<td class="n hl">${fmt(oa.oa)}</td><td></td></tr>`}</table>
   <div class="eq">E.A = GEN + PROCESS + S.A × %   (S.A-based exhaust: applied when exhaust volume is not provided · ROUNDUP 10)
 P.A = Room volume × pressurization factor (ROUNDUP 100)      F.A = Persons × CMH/人
-${RR.map(r=>`${esc(r.name)}: P.A = ${fmt(r.vol)} × ${r.paFactor} = ${fmt(r.oa.pa)} · F.A = ${fmt(r.persons)} × ${r.faPP} = ${fmt(r.oa.fa)}`).join('\n')}</div>
+${RR.map(r=>`${esc(r.name)}: P.A = ${fmt(r.vol)} × ${r.paFactor} = ${fmt(r.oa.pa)} · F.A = ${fmt(r.persons)} × ${r.faPP} = ${fmt(r.oa.fa)}`).join('\n')}
+${RR.map(r=>{ const q=r.oa, sa=r.air2.saFinal; return `${esc(r.name)}: E.A = ${fmt(q.eaGen)} + ${fmt(q.eaProc)} + ${q.eaRatio?`(S.A ${fmt(sa)} × ${fmt(q.eaRatio)}% = ${fmt(q.eaSa)})`:'0'} = <b>${fmt(q.ea)}</b> · O.A = MAX(${fmt(q.ea)} + ${fmt(q.pa)}, ${fmt(q.fa)}) = <b>${fmt(q.oa)}</b>`; }).join('\n')}</div>
   <p class="note">* STANDARD — N5(Class 100) PA = room volume × 2.0 / N6(1K) × 1.0~2.0 / N7(10K) × 1.0~2.0 / N8(100K) × 1.0 / G.R × 0.5 · F.A : 40 CMH/人 (CR), 25 CMH/人 (GR) · E.A : Owner utility list</p>
   ${procBlock}
   <h3>2-4. ROOM LOAD CALCULATION</h3>
@@ -1698,12 +1729,12 @@ ${RR.map(r=>`${esc(r.name)}: ${r.U.bldg}×${fmt(r.area)} · ${r.U.personSH}×${f
   <h3>2-5. AIR VOLUME (C.A / S.A / BFU / HFB)</h3>
   <div class="lbl">* SUPPLY AIR (S.A) SELECTION — 급기량 선정 (룸별 ①~④ 중 최대값)</div>
   <table class="rt rsa"><tr><th rowspan="2">ROOM NAME</th><th rowspan="2">ΔT<br>(℃)</th><th colspan="4">S.A CRITERIA (CMH)</th><th rowspan="2">FINAL S.A<br>(CMH)</th><th rowspan="2">GOVERNED BY</th><th rowspan="2">ACH<br>(回/h)</th></tr>
-   <tr><th>① LOAD</th><th>② O.A</th><th>③ C.A × %</th><th>④ TEMP. DEV.</th></tr>
+   <tr><th>① LOAD</th><th>② O.A</th><th>③ C.A × 50%</th><th>④ TEMP. DEV.</th></tr>
    ${RR.map(r=>{ const x=r.air2, c=[x.saLoad,r.oa.oa,x.saCa,x.saTemp], gi=gk.indexOf(x.govKey);
      return `<tr class="on">${td(r.name,0,'')}${td(x.dT,2)}${c.map((v,j)=>`<td class="n${j===gi?' hl':''}">${fmt(v)}</td>`).join('')}<td class="n hl">${fmt(x.saFinal)}</td>${td(`${nums[gi]} ${x.gov}`,0,'c')}${td(x.achActual,1)}</tr>`; }).join('')}
    <tr class="tot"><td>TOTAL</td><td></td>${td(a2.saLoad)}${td(oa.oa)}${td(a2.saCa)}${td(a2.saTemp)}<td class="n hl">${fmt(a2.saFinal)}</td>${td('Σ ROOMS',0,'c')}${td(a2.achActual,1)}</tr></table>
   <div class="eq">ΔT = Room temp. − Coil leaving (dew) ${fmt(a.DP.db,2)}℃ (${esc(a.applied.dewName)})
-① S.A = Room load ÷ 0.29 ÷ ΔT (ROUNDUP 10)   ② O.A (2-2)   ③ C.A × ratio   ④ Volume × temp.-deviation air changes
+① S.A = Room load ÷ 0.29 ÷ ΔT (ROUNDUP 10)   ② O.A (2-2)   ③ C.A × 50% (company std.)   ④ Volume × temp.-deviation air changes
 FINAL S.A = MAX(①②③④) per room · AHU S.A = Σ rooms</div>
   <table class="rt"><tr><th>ROOM NAME</th><th>C.A<br>(CMH)</th><th>C.A BASIS</th><th>BFU<br>(EA)</th><th>BFU BASIS (C.A − S.A)</th><th>HFB<br>(EA)</th><th>HFB BASIS (S.A)</th></tr>
    ${RR.map(r=>`<tr>${td(r.name,0,'')}${td(r.air2.ca)}${td(`${fmt(r.vol)} m³ × ${r.U.ach} (${clsL(r)})`,0,'')}${td(r.bfu.qty)}${td(`(${fmt(r.air2.ca)}−${fmt(r.air2.saFinal)}) ÷ ${r.rm.bfuCMM} ÷ 60 × ${r.rm.bfuSF}${r.bfu.manual?' (manual)':''}`,0,'')}${td(r.bfu.hfbSel)}${td(`${fmt(r.air2.saFinal)} ÷ ${r.rm.hfbCMM} ÷ 60 × ${r.rm.hfbSF}${r.bfu.hfbManual?' (manual)':''}`,0,'')}</tr>`).join('')}
