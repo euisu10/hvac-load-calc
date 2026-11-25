@@ -1367,14 +1367,16 @@ function renderSide(){
 
 // ---------- air flow distribution diagram (공조 풍량 배분) — whole-room basis, per-unit as reference ----------
 const tl = (ko,en,vi) => UI.lang==='en'?en:UI.lang==='vi'?vi:ko;
+let AF_N=0;
 function airflowSVG(forReport){
+  const af='af'+(++AF_N)+'_';   // unique marker ids per diagram (input view & report both in the DOM)
   const A=R.ahu, B=R.ahuAll, n=Math.max(1,Math.round(S.ahuQty||1)), pts=psyPoints(), by=Object.fromEntries(pts.map(p=>[p.id,p]));
   const ea=Math.min(B.oa,R.oa.ea), pa=Math.max(0,B.oa-ea);
   const cO='#5f9e24', cR='#7b8794', cS='#1f78b4', cE='#e2601c', ink='#16202b', red='#b3261e', blu='#1d5fa8', mut='#5b6876';
   const SUM=tl('하','SUMMER','HÈ'), WIN=tl('동','WINTER','ĐÔNG');
   const W=880,H=528, ax0=150, ax1=580, ay0=150, ay1=240, ym=195, rx0=725, rx1=865, ry0=140, ry1=250, rc=(rx0+rx1)/2;
-  const mk=(id,c)=>`<marker id="af_${id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`;
-  const duct=(d,c,id,dash)=>`<path d="${d}" fill="none" stroke="${c}" stroke-opacity=".15" stroke-width="16" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${c}" stroke-width="2.4" ${dash?`stroke-dasharray="${dash}"`:''} stroke-linejoin="round" marker-end="url(#af_${id})"/>`;
+  const mk=(id,c)=>`<marker id="${af}${id}" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="${c}"/></marker>`;
+  const duct=(d,c,id,dash)=>`<path d="${d}" fill="none" stroke="${c}" stroke-opacity=".15" stroke-width="16" stroke-linejoin="round"/><path d="${d}" fill="none" stroke="${c}" stroke-width="2.4" ${dash?`stroke-dasharray="${dash}"`:''} stroke-linejoin="round" marker-end="url(#${af}${id})"/>`;
   const tag=(x,y,lbl,val,c)=>{ const lw=lbl.length*7.6, vw=val.length*7, w=lw+vw+30, x0=x-w/2;
     return `<rect x="${x0}" y="${y-12}" width="${w}" height="24" rx="12" fill="#fff" stroke="${c}" stroke-width="1.4"/><rect x="${x0}" y="${y-12}" width="${lw+18}" height="24" rx="12" fill="${c}"/><text x="${x0+9}" y="${y+4}" class="tl">${lbl}</text><text x="${x0+w-11}" y="${y+4}" text-anchor="end" class="tv">${val}</text>`; };
   const node=(x,y,ids)=>{ const lab=ids.join('·'), w=lab.length*6.6+16;
