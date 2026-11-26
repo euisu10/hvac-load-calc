@@ -680,6 +680,7 @@ function roomCalc(I, rm, ix, DPz, rooms) {
   const equips = (I.equip || []).filter(e => e.room === rm.id);
   let eaSa = 0, eaTotal = 0, oa = 0;
   const setOA = () => { eaTotal = XL.roundup(eaGen + eaProc + eaSa, -1); oa = Math.max(pa + eaTotal, fa); };
+  let noRemoval = false, basisFan = null; // 모를 때: kW 역산은 PCW·배기 제거열 없는 상태 기준 (FAN 연동 영향 차단)
   const solve = (fanIn) => {
     const w = [];
     const L = { bldg: U.bldg * area, person: U.personSH * persons, light: U.light * area * U.lightF, proc: 0, fan: fanIn };
@@ -706,15 +707,17 @@ function roomCalc(I, rm, ix, DPz, rooms) {
     } else {
       // PCW / exhaust heat removed (per room, as company Excel 2-1B): A/C = (POWER LOAD − PCW − EXHAUST) × LOAD RATE
       // 공정부하를 모를 때도 PCW / 공정배기 제거열은 반영: A/C = (POWER LOAD − PCW − EXHAUST) × LOAD RATE
-      pK = (+rm.pcwLpm || 0) * (+rm.pcwDT || 0) * 60; pM = (+rm.exCmh || 0) * 0.288 * (+rm.exDT || 0);
-      const target = U.target * area, need = target / sfK - others;
-      const nAuto = Math.max(0, XL.roundup(need, -1)), kwAuto = XL.roundup(nAuto / U.rate + pK + pM, 0) / 860;
+      pK = noRemoval ? 0 : (+rm.pcwLpm || 0) * (+rm.pcwDT || 0) * 60; pM = noRemoval ? 0 : (+rm.exCmh || 0) * 0.288 * (+rm.exDT || 0);
+      const target = U.target * area, need = target / sfK - (basisFan == null ? others : others - L.fan + basisFan);
+      // POWER kW는 목표 밀도에서만 역산 (PCW·배기 입력과 무관), PCW·배기는 ④ A/C 단계에서만 차감
+      const nAuto = Math.max(0, XL.roundup(need, -1)), kwAuto = XL.roundup(nAuto / U.rate, 0) / 860;
       const manual = !isBlank(rm.densityKw) && +rm.densityKw >= 0;
       if (manual) { pKw = +rm.densityKw || 0; pH = XL.roundup(pKw * 860, 0); pN = XL.roundup((pH - pK - pM) * U.rate, -1);
         if (pN < 0) w.push(`${tag}: 공정 A/C 부하가 음수입니다(PCW/배기 제거열 > 발열). 입력을 확인하세요.`); }
       else { if (need < 0 && area > 0) w.push(`${tag}: 목표 부하밀도 ${U.target} kcal/h·m²가 건물·인체·조명 부하만으로 이미 초과됩니다. 공정부하 0으로 계산했습니다.`);
-        pN = nAuto; pH = XL.roundup(pN / U.rate + pK + pM, 0); pKw = pH / 860; }
-      procDensity = { target: U.target, targetLoad: target, others, need: pN, kwEq: pKw, rate: U.rate * 100, powerLoad: pH, manual, kwAuto, K: pK, M: pM };
+        pH = XL.roundup(nAuto / U.rate, 0); pKw = pH / 860; pN = XL.roundup((pH - pK - pM) * U.rate, -1);
+        if (pN < 0) w.push(`${tag}: 공정 A/C 부하가 음수입니다(PCW/배기 제거열 > 발열). 입력을 확인하세요.`); }
+      procDensity = { target: U.target, targetLoad: target, others, need: pN, kwEq: pKw, rate: U.rate * 100, powerLoad: pH, manual, kwAuto, nAuto, K: pK, M: pM };
     }
     L.proc = pN; L.sub = L.bldg + L.person + L.light + L.proc + L.fan; L.total = L.sub * sfK; L.heat = area * U.heat;
     L.density = area ? L.total / area : 0; L.densityW = area ? L.total / 0.86 / area : 0;
@@ -732,6 +735,7 @@ function roomCalc(I, rm, ix, DPz, rooms) {
   const bfuManual = !isBlank(rm.bfuQty), fanManual = !isBlank(rm.fanLoad);
   const fanOf = q => q * (+rm.bfuW || 0) * (+rm.bfuFactor || 0) * 0.86;
   let sol, bfuQty, fan;
+  const run = () => { eaSa = 0;
   for (let ek = 0; ek < 40; ek++) {
     setOA();
     if (!fanManual) {
@@ -745,7 +749,10 @@ function roomCalc(I, rm, ix, DPz, rooms) {
     const nx = eaRatio > 0 ? XL.roundup(sol.air2.saFinal * eaRatio, -1) : 0;
     if (nx === eaSa) break;
     eaSa = ek < 30 ? nx : Math.max(eaSa, nx);
-  }
+  } };
+  const densAuto = rm.procMode !== 'power' && !(!isBlank(rm.densityKw) && +rm.densityKw >= 0);
+  if (densAuto && ((+rm.pcwLpm || 0) > 0 || (+rm.exCmh || 0) > 0)) { noRemoval = true; run(); basisFan = sol.L.fan; noRemoval = false; }
+  run();
   const hfbSel = isBlank(rm.hfbQty) ? sol.hfb : +rm.hfbQty;
   return { ix, id: rm.id, name: tag, building: rm.building, rm, cond, RM: RMr, area, ch, vol, persons, U, paFactor, faPP,
     L: sol.L, air2: sol.air2, proc: sol.procRows, procDensity: sol.procDensity, procTot: sol.procTot,
@@ -1346,7 +1353,7 @@ function update(){
           const raw=(pt.H-pt.K-pt.M)*rate/100;
           const l4=`<span class="tt">④ A/C 부하</span>(① ${fmt(pt.H)} − ② ${fmt(pt.K)} − ③ ${fmt(pt.M)}) × 부하율 ${fmt(rate)}% = ${fmt(raw)} → <b>${fmt(pt.N)} kcal/h</b> (10 단위 올림)`;
           let back='';
-          if(d&&!d.manual&&!pw){ back=`<span class="tt">역산</span>목표 ${fmt(d.target)} × 면적 ${fmt(rr.area)} ÷ ${fmt(1+rr.U.sf/100,2)} − (건물 ${fmt(L0.bldg)} + 인체 ${fmt(L0.person)} + 조명 ${fmt(L0.light)} + FAN ${fmt(L0.fan,1)}) → A/C ${fmt(pt.N)} → POWER = (${fmt(pt.N)} ÷ ${fmt(rate)}% + ② + ③) ÷ 860 = ${fmt(kw,1)} kW<br>`; }
+          if(d&&!d.manual&&!pw){ back=`<span class="tt">역산</span>목표 ${fmt(d.target)} × 면적 ${fmt(rr.area)} ÷ ${fmt(1+rr.U.sf/100,2)} − (건물 ${fmt(L0.bldg)} + 인체 ${fmt(L0.person)} + 조명 ${fmt(L0.light)} + FAN ${fmt(L0.fan,1)}) → A/C ${fmt(d.nAuto)} → POWER = ${fmt(d.nAuto)} ÷ ${fmt(rate)}% ÷ 860 = ${fmt(kw,1)} kW<br>`; }
           pc.innerHTML = back+[l1,l2,l3,l4].join('<br>'); } }
       so('ac', fmt(pt.N), `(POWER LOAD − PCW − 배기) × 부하율${d&&!d.manual?' · 목표 밀도에서 역산':''}`);
       const out=densOut(r,rr.L.density); so('dens', `<span style="color:${out?'var(--warn)':'var(--ok)'}">${fmt(rr.L.density,1)}</span> <span class="pill${out?' w':''}" style="font-size:10px">${out?'기준 밖':'기준 내'}</span>`, `사내 기준 ${densStd(r)} kcal/h·m²`); }
