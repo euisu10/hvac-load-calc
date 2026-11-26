@@ -254,10 +254,14 @@ details.rstd .rgrp:last-child{border-bottom:0}
 .rt.rsa tr.on td{font-weight:600}
 .rt tr.tot td.hl{background:#fff3b0}
 .schd{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:6px 0 10px}
-.sc-card{border:1px solid #c9d2dc;background:#fff;break-inside:avoid;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sc-card{border:1px solid #c9d2dc;background:#fff;break-inside:avoid;display:flex;flex-direction:column;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .sc-hd{color:#fff;padding:4px 10px;display:flex;justify-content:space-between;font-size:9.5px;font-weight:700;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .sc-sub{font-weight:400;opacity:.92}
-.sc-body{padding:8px 10px 6px;display:flex;gap:8px;align-items:stretch;min-height:58px}
+.sc-body{padding:8px 10px 6px;display:flex;gap:8px;align-items:stretch;min-height:58px;flex:1}
+.sc-coils{display:grid;grid-template-columns:1fr 1fr;gap:5px;margin-top:6px}
+.sc-coil{border:1px solid #9cc0e4;border-left:3px solid #1d6fb8;background:#eef5fc;padding:3px 6px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.sc-coil-lb{font-size:7.8px;font-weight:700;color:#1d6fb8;letter-spacing:.2px}
+.sc-coil-v{font:700 12.5px var(--f-num);color:#0f172a;white-space:nowrap}
 .sc-mk{width:4px;flex:none;background:#f5b400;border-radius:2px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
 .sc-lb{font-size:8.5px;color:#64748b}
 .sc-big{font:700 20px var(--f-num);color:#0f172a;white-space:nowrap}
@@ -1873,20 +1877,23 @@ ${sp(A.sa)} CMH × 1.2 × (${sp(A.lh,6)} − ${sp(A.eh,6)}) = ${sp(A.humRaw,1)} 
   const heatSelA = heatSelS ? A.reheat : A.heatCap, heatSelT = heatSelS ? T.heatS : T.heatW; // 3-9 스케줄: 선정 난방 용량 1개만 표기
   // 3-9 EQUIPMENT SCHEDULE — 카드형 (컬러 헤더 + 노란 마커: 1대 값 강조, 하단 회색 띠: × 대수 합계)
   const schCards = () => {
-    const card = (title, sub, col, unit, a, cvA, t, cvT, off) => `<div class="sc-card">
+    const card = (title, sub, col, unit, a, cvA, t, cvT, off, extra='') => `<div class="sc-card">
       <div class="sc-hd" style="background:${col}"><span>${title}</span><span class="sc-sub">${sub}</span></div>
       ${off ? `<div class="sc-body"><div class="sc-off">NOT USED (미사용)</div></div>` : `
       <div class="sc-body"><div class="sc-mk"></div><div>
         <div class="sc-lb">1대 기준 (PER UNIT)</div>
         <div><span class="sc-big">${fmt(a)}</span><span class="sc-u">${unit}</span></div>
-        <div class="sc-cv">${cvA}</div></div></div>
+        <div class="sc-cv">${cvA}</div>${extra}</div></div>
       <div class="sc-ft"><span class="sc-lb">× ${n} <span>대 합계</span></span><span class="sc-tv"><span class="sc-tot">${fmt(t)}</span><span class="sc-u">${unit}</span><br><span class="sc-cv">${cvT}</span></span></div>`}
     </div>`;
     const cvC = v => `${fmt(v/S.coolKcal,1)} ${cu()} · ${fmt(v/860,1)} kW`;
-    return card('SUPPLY AIR','S.A','#3b82c4','CMH',A.sa,`${fmt(A.sa/60)} CMM`,T.sa,`${fmt(T.sa/60)} CMM`)
-      + card('OUTSIDE AIR','O.A','#3b82c4','CMH',A.oa,`${fmt(A.oa/60)} CMM · S.A × ${fmt(A.sa?A.oa/A.sa*100:0,1)} %`,T.oa,`${fmt(T.oa/60)} CMM`)
-      + card('RETURN AIR','R.A','#3b82c4','CMH',A.ra,`${fmt(A.ra/60)} CMM`,T.ra,`${fmt(T.ra/60)} CMM`)
-      + card('COOLING',A.twoCoil?'PRE + RE COIL':'1 COIL','#1d6fb8','kcal/h',A.cool,cvC(A.cool)+(A.twoCoil?`<br>PRE ${fmt(A.pre)} · RE ${fmt(A.re)}`:''),T.cool,cvC(T.cool))
+    // 2 COIL: 코일별(PRE / RE) 1대 용량을 별도 박스로 부각
+    const coilBox = (lbl, v) => `<div class="sc-coil"><div class="sc-coil-lb">${lbl}</div><div><span class="sc-coil-v">${fmt(v)}</span><span class="sc-u">kcal/h</span></div><div class="sc-cv">${cvC(v)}</div></div>`;
+    const coils = A.twoCoil ? `<div class="sc-coils">${coilBox('PRE COOLING COIL', A.pre)}${coilBox('RE COOLING COIL', A.re)}</div>` : '';
+    return card('SUPPLY AIR','S.A','#4a5aa8','CMH',A.sa,`${fmt(A.sa/60)} CMM`,T.sa,`${fmt(T.sa/60)} CMM`)
+      + card('OUTSIDE AIR','O.A','#5c9440','CMH',A.oa,`${fmt(A.oa/60)} CMM · S.A × ${fmt(A.sa?A.oa/A.sa*100:0,1)} %`,T.oa,`${fmt(T.oa/60)} CMM`)
+      + card('RETURN AIR','R.A','#6e7f91','CMH',A.ra,`${fmt(A.ra/60)} CMM`,T.ra,`${fmt(T.ra/60)} CMM`)
+      + card('COOLING',A.twoCoil?'2 COIL (PRE + RE)':'1 COIL','#1d6fb8','kcal/h',A.cool,cvC(A.cool),T.cool,cvC(T.cool),false,coils)
       + card('HEATING',heatSelS?'하절기 재열':'동절기 난방','#e0602a','kcal/h',heatSelA,`${fmt(heatSelA/860,1)} kW`,heatSelT,`${fmt(heatSelT/860,1)} kW`,A.heatOff)
       + card('HUMIDIFICATION',esc(S.humType||''),'#2a9d8f','kg/h',A.hum,`${fmt(A.hum*HUM_KW_PER_KGH,1)} kW`,T.hum,`${fmt(T.hum*HUM_KW_PER_KGH,1)} kW`,A.humOff);
   };
