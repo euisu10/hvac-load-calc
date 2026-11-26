@@ -378,9 +378,11 @@ const DESIGN_CONDITIONS = {
   rooms: [
     // room conditions are generic (usable for clean room or general room) — room type comes from 청정도 (cleanClass)
     { id: 'CR1', name: 'ROOM CONDITION 1', dewName: 'DEW POINT (RC1)', db: 20, rh: 50, ah: 0.00726, dewDB: 10.0, dewRH: 95 },
-    { id: 'CR2', name: 'ROOM CONDITION 2', dewName: 'DEW POINT (RC2)', db: 22, rh: 50, ah: 0.008226, dewDB: 11.86, dewRH: 95 },
-    { id: 'RC23', name: 'ROOM CONDITION 3', dewName: 'DEW POINT (RC3)', db: 23, rh: 50, ah: 0.00878, dewDB: 12.8, dewRH: 95 },
-    { id: 'GR', name: 'ROOM CONDITION 4', dewName: 'DEW POINT (RC4)', db: 24, rh: 50, ah: 0.0093, dewDB: 13.7, dewRH: 95 },
+    // 21℃/50% (회사 엑셀 CLEAN ROOM 조건) 추가 — 온도순으로 번호 재배열, id는 기존 저장 파일 호환을 위해 그대로 유지
+    { id: 'RC21', name: 'ROOM CONDITION 2', dewName: 'DEW POINT (RC2)', db: 21, rh: 50, ah: 0.00773, dewDB: 11.0, dewRH: 95 },
+    { id: 'CR2', name: 'ROOM CONDITION 3', dewName: 'DEW POINT (RC3)', db: 22, rh: 50, ah: 0.008226, dewDB: 11.86, dewRH: 95 },
+    { id: 'RC23', name: 'ROOM CONDITION 4', dewName: 'DEW POINT (RC4)', db: 23, rh: 50, ah: 0.00878, dewDB: 12.8, dewRH: 95 },
+    { id: 'GR', name: 'ROOM CONDITION 5', dewName: 'DEW POINT (RC5)', db: 24, rh: 50, ah: 0.0093, dewDB: 13.7, dewRH: 95 },
   ],
 };
 const num = v => (v !== '' && v != null && !isNaN(+v)) ? +v : null;
