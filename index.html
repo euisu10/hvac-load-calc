@@ -1744,7 +1744,7 @@ ${RR.map(r=>{ const q=r.oa, sa=r.air2.saFinal; return `${esc(r.name)}: E.A = ${f
    ${RR.map(r=>`<tr>${td(r.name,0,'')}${td(r.L.bldg)}${td(r.L.person)}${td(r.L.light)}${td(r.L.proc)}${td(r.L.fan,1)}${td(r.U.sf)}<td class="n hl">${fmt(r.L.total)}</td>${td(r.L.density,1)}${td(r.L.heat)}</tr>`).join('')}
    <tr class="tot"><td>TOTAL</td>${td(L.bldg)}${td(L.person)}${td(L.light)}${td(L.proc)}${td(L.fan,1)}<td></td><td class="n hl">${fmt(L.total)}</td>${td(L.density,1)}${td(L.heat)}</tr></table>
   <div class="eq">BUILDING = unit × AREA · PERSON = kcal/h·人 × PERSONS · LIGHTING = unit (by lux) × AREA × factor · FAN = BFU × W × factor × 0.86
-${RR.map(r=>`${esc(r.name)}: ${r.U.bldg}×${fmt(r.area)} · ${r.U.personSH}×${fmt(r.persons)} · ${r.U.light}×${fmt(r.area)}×${r.U.lightF} · BFU ${fmt(r.bfu.qty)}×${fmt(+r.rm.bfuW)}×${r.rm.bfuFactor}×0.86 · HEAT ${r.U.heat}×${fmt(r.area)}`).join('\n')}</div>`;
+${RR.map(r=>`${esc(r.name)}:\n  BUILDING ${r.U.bldg}×${fmt(r.area)}\n  PERSON ${r.U.personSH}×${fmt(r.persons)}\n  LIGHTING ${r.U.light}×${fmt(r.area)}×${r.U.lightF}\n  FAN BFU ${fmt(r.bfu.qty)}×${fmt(+r.rm.bfuW)}×${r.rm.bfuFactor}×0.86\n  HEATING ${r.U.heat}×${fmt(r.area)}`).join('\n')}</div>`;
   pages.push(p3);
 
   // p3b: 2-5 air volume (room rows) + 2-6
@@ -1803,7 +1803,8 @@ ${sp(A.sa)} CMH × 0.29 × (${sp(A.lt,2)} − ${sp(A.et,2)}) = ${sp(A.heatRaw)} 
   <div class="lbl">* 하절기 난방 — SUMMER RE-HEATING (after dehumidification)</div>
   <div class="eq">S.A Temp = ${rdb} − (${sp(L.total)} − ${sp(L.proc)}) ÷ ${n} ÷ (0.29 × ${sp(A.sa)}) = ${sp(A.tsup,2)} ℃
 ${sp(A.sa)} CMH × 0.29 × (${sp(A.tsup,2)} − ${fmt(a.DP.db,2)}) = ${sp(A.reheatRaw)} kcal/h × ${S.heatSF} = <b>${sp(A.reheat)} kcal/h</b></div>
-  <div class="eq">동절기 난방 ${sp(A.heatCap)} kcal/h (${sp(A.heatWKw,1)} kW) · 하절기 난방 ${sp(A.reheat)} kcal/h (${sp(A.heatSKw,1)} kW) → ${A.heatHP?'HEATER 선정 = 하절기 RE-HEATING':'HEATER 선정 MAX'} = <b>${sp(A.heatSel)} kcal/h</b> (${sp(A.heatKw,1)} kW)</div>
+  <div class="eq">동절기 난방 ${sp(A.heatCap)} kcal/h (${sp(A.heatWKw,1)} kW) · 하절기 난방 ${sp(A.reheat)} kcal/h (${sp(A.heatSKw,1)} kW)
+→ ${A.heatHP?'HEATER 선정 = 하절기 RE-HEATING':'HEATER 선정 MAX'} = <b>${sp(A.heatSel)} kcal/h</b> (${sp(A.heatKw,1)} kW)</div>
   <p class="note">${A.heatHP?`<b>난방용량 선정 기준 — 공냉식 (DX HEAT PUMP)</b> · 당사 표준 실외기는 DX HEAT PUMP 타입으로, 겨울철에는 냉/난방 스위칭되어 실외기로 난방합니다. 따라서 히팅 코일은 하절기 제습 후 RE-HEATING 용량만 적용합니다. DX HEAT PUMP 실외기의 히팅 능력은 냉각용량보다 조금 높게 선정되므로, 동절기 난방 ${sp(A.heatCap)} kcal/h는 실외기(냉방 ${sp(A.cool)} kcal/h 기준)로 처리합니다.${A.hpShort?' <b>※ 동절기 난방이 냉방용량보다 커서 실외기 히팅 능력 확인 필요.</b>':''}`:`<b>난방용량 선정 기준 — 수냉식 (HEAT PUMP 미사용)</b> · 실외기 난방이 없으므로 동절기 HEATING과 하절기 RE-HEATING을 모두 계산하여 큰 값을 히팅 코일 용량으로 적용합니다.`}</p>`}
 
   <h3>3-4. HUMIDIFICATION${A.humOff?' — NOT USED (미사용)':''}</h3>
@@ -1912,6 +1913,39 @@ Q / L × 1000 = ${fmt(O.coolKw,1)} kW ÷ ${fmt(O.sa)} CMH × 1000 = <b>${fmt(O.c
   $('pages').innerHTML = pages.map((p,i)=> i===0 ? p.replace('#T',total) : page('', p, i+1, total)).join('');
   applyWatermark();
   trDOM($('pages'));
+  breakReportLines();
+}
+
+// ---------- report notes: 한 줄로 이어진 부연설명을 항목별 줄바꿈 ----------
+// 괄호 밖의 " · " 구분자, 3칸 이상 공백(수식 사이), 문장 끝(다. / 영문 마침표)에서 줄을 바꿈. 표 안 글자는 건드리지 않음.
+function breakReportLines(){
+  document.querySelectorAll('#pages .eq, #pages .note').forEach(el=>{
+    if(el.closest('table') || el.dataset.lb) return; el.dataset.lb='1';
+    // 습공기 선도 페이지(차트 2개)는 공간이 빠듯해 상단 부제는 한 줄 유지
+    if(el.closest('.page') && el.closest('.page').querySelector('.psy2') && el.nextElementSibling && el.nextElementSibling.querySelector && el.nextElementSibling.querySelector('svg')) return;
+    const isEq = el.classList.contains('eq');
+    let depth=0;
+    const walk=document.createTreeWalker(el, NodeFilter.SHOW_TEXT); const nodes=[]; while(walk.nextNode()) nodes.push(walk.currentNode);
+    nodes.forEach(tn=>{
+      const t=tn.nodeValue, parts=[]; let cur='';
+      for(let i=0;i<t.length;i++){
+        const ch=t[i];
+        if(ch==='('||ch==='['){ depth++; cur+=ch; continue; }
+        if(ch===')'||ch===']'){ depth=Math.max(0,depth-1); cur+=ch; continue; }
+        if(depth===0){
+          if(t.startsWith(' · ',i)){ parts.push(cur); cur=''; i+=2; continue; }
+          if(isEq && t.startsWith('   ',i) && (cur.trim() || tn.previousSibling)){ let j=i; while(t[j]===' ') j++; if(t[j] && t[j]!=='\n'){ parts.push(cur); cur=''; i=j-1; continue; } }
+          if(!isEq && ch==='.' && t[i+1]===' ' && /[다a-z0-9)]/.test(t[i-1]||'') && /[A-Z가-힣※*]/.test(t[i+2]||'')){ cur+='.'; parts.push(cur); cur=''; i+=1; continue; }
+        }
+        cur+=ch;
+      }
+      parts.push(cur);
+      if(parts.length<2) return;
+      const frag=document.createDocumentFragment();
+      parts.forEach((pt,k)=>{ if(k) frag.appendChild(document.createElement('br')); frag.appendChild(document.createTextNode(k?pt.replace(/^\s+/,''):pt)); });
+      tn.parentNode.replaceChild(frag, tn);
+    });
+  });
 }
 
 // ---------- report watermark (도용 방지 · 시안 B: 로고 + 회사명 사선 반복) ----------
