@@ -1917,6 +1917,14 @@ FINAL S.A = MAX(①②③④) per room · AHU S.A = Σ rooms</div>
   <table class="rt"><tr><th>ROOM NAME</th><th>C.A<br>(CMH)</th><th>C.A BASIS</th><th>BFU<br>(EA)</th><th>BFU BASIS (C.A − S.A)</th><th>HFB<br>(EA)</th><th>HFB BASIS (S.A)</th></tr>
    ${RR.map(r=>`<tr>${td(r.name,0,'')}${td(r.air2.ca)}${td(`${fmt(r.vol)} m³ × ${r.U.ach} (${clsL(r)})`,0,'')}${td(r.bfu.qty)}${td(`(${fmt(r.air2.ca)}−${fmt(r.air2.saFinal)}) ÷ ${r.rm.bfuCMM} ÷ 60 × ${r.rm.bfuSF}${r.bfu.manual?' (manual)':''}`,0,'')}${td(r.bfu.hfbSel)}${td(`${fmt(r.air2.saFinal)} ÷ ${r.rm.hfbCMM} ÷ 60 × ${r.rm.hfbSF}${r.bfu.hfbManual?' (manual)':''}`,0,'')}</tr>`).join('')}
    ${one?'':`<tr class="tot"><td>TOTAL</td>${td(a2.ca)}<td></td>${td(R.bfu.qty)}<td></td>${td(R.bfu.hfbSel)}<td></td></tr>`}</table>
+  <p class="note">* BFU 수량 = (C.A − S.A) ÷ BFU CMM ÷ 60 × 여유율 (올림) — 청정도 유지 순환풍량(C.A) 중 AHU 급기(S.A)로 부족한 풍량을 BFU로 보충 · HFB 수량 = S.A ÷ HFB CMM ÷ 60 × 여유율 (올림)${RR.map(r=>{
+    const x=r.air2, b=r.bfu, gi=gk.indexOf(x.govKey), nm=one?'':`${esc(r.name)}: `;
+    let s;
+    if(b.manual) s=`BFU ${fmt(b.qty)}대 직접 입력 (자동 계산값 ${fmt(b.auto)}대)`;
+    else if(!(+r.rm.bfuCMM>0)) s=`BFU 0대 — BFU CMM이 0이라 계산하지 않음`;
+    else if(b.qty===0) s=`BFU 0대 사유: 급기량 S.A ${fmt(x.saFinal)} CMH ≥ 순환풍량 C.A ${fmt(x.ca)} CMH (${nums[gi]||''} ${esc(x.gov)} 기준) — 청정도 유지 환기량(C.A)을 AHU 급기만으로 이미 충족하므로 BFU로 추가 순환할 풍량이 없음`;
+    else s=`BFU ${fmt(b.qty)}대 — C.A ${fmt(x.ca)} CMH 대비 S.A 부족분 ${fmt(x.ca-x.saFinal)} CMH를 BFU로 추가 순환`;
+    return `<br>* ${nm}${s}`; }).join('')}</p>
   <h3>2-6. AHU SUMMARY</h3>
   <table class="rt"><tr><th>AHU</th><th>Q'TY</th><th>ROOMS</th><th>ROOM COOLING<br>(kcal/h)</th><th>ROOM HEATING<br>(kcal/h)</th><th>S.A<br>(CMH)</th><th>R.A<br>(CMH)</th><th>O.A<br>(CMH)</th><th>O.A RATIO</th></tr>
    <tr>${td(S.ahuTag,0,'c')}${td(n)}${td(RR.length)}${td(R.per.rsh)}${td(R.per.heat)}${td(R.per.sa)}${td(R.per.ra)}${td(R.per.oa)}${td(fmt(R.per.oaRatio*100,1)+' %')}</tr></table>
